@@ -79,12 +79,6 @@ class ConvexVolume
 {
 public:
     /**
-      * Create a convex hull in 2D space (on the xz plane) from
-      * the specified 3D points.
-      **/
-    ConvexVolume(InputGeom *geom, int new_area, float offset = 0.0f);
-
-    /**
       * Create a convex hull from a bounding box
       **/
     ConvexVolume(Ogre::AxisAlignedBox boundingBox, int new_area, float offset = 0.0f);
@@ -93,15 +87,6 @@ public:
       * Create a convex hull from verticies
       **/
     ConvexVolume ( std::vector <Ogre::Vector3> verts, int new_area, float offset = 0.0f ) ;
-
-    /**
-      * Move this convex hull to a new world position offset with specified
-      * translation vector.
-      * Can be done pretty fast. Due to the 2D nature of this convex hull it's
-      * not possible to apply an arbitrary rotation, however (though in theory
-      * rotations around Y axis would work).
-      **/
-    void move(Ogre::Vector3 translate);
 
     /**
       * The vertices of this convex hull.
@@ -135,17 +120,6 @@ public:
       * for determining the optimal path.
       **/
     int area;
-
-private:
-    /**
-      * Compare two points. Returns true if they are equal.
-      **/
-    static inline bool cmppt(const float* a, const float* b);
-
-    /**
-      * isLeftOf comparison. Returns true if point c is left of line a-b.
-      **/
-    static inline bool left(const float* a, const float* b, const float* c);
 };
 
 #endif // RECASTCONVEXHULL_H

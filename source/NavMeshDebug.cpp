@@ -239,22 +239,20 @@ RemoveObstacle ( const dtObstacleRef &obstacle_ref )
 void
 NavMeshDebug::
 RedrawAll ()
-{return;
+{
    RemoveAllTiles () ;
    RemoveAllObstacles () ;
    RemoveGrid () ;
    RemoveInputMesh () ;
 
-   DrawEntireNavMesh ( *OgreTileCache.GetInputGeom (),
-                       OgreTileCache.GetTileCache (),
+   DrawEntireNavMesh ( OgreTileCache.GetTileCache (),
                        *OgreTileCache.GetNavMesh (),
                        *OgreTileCache.GetNavQuery () ) ;
 }
 
 void
 NavMeshDebug::
-DrawEntireNavMesh ( const InputGeom      &input_geom,
-                    const dtTileCache    &tile_cache,
+DrawEntireNavMesh ( const dtTileCache    &tile_cache,
                     const dtNavMesh      &nav_mesh,
                     const dtNavMeshQuery &nav_query )
 {

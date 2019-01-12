@@ -39,8 +39,7 @@ public :
 
 private :
    void
-   DrawEntireNavMesh ( const class InputGeom      &input_geom,
-                       const dtTileCache          &tile_cache,
+   DrawEntireNavMesh ( const dtTileCache          &tile_cache,
                        const dtNavMesh            &nav_mesh,
                        const class dtNavMeshQuery &nav_query ) ;
 

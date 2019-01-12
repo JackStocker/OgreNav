@@ -42,7 +42,7 @@
 #include "DetourTileCache.h"
 #include "DetourCommon.h"
 #include "fastlz.h"
-#include "RecastInputGeom.h"
+#include "InputGeom.h"
 
 const float TEMP_OBSTACLE_RADIUS = 1.0f;
 const float TEMP_OBSTACLE_HEIGHT = 2.0f;
@@ -334,10 +334,11 @@ public:
     OgreDetourTileCache(OgreRecast *recast, unsigned int max_num_obstacles, int tileSize = 48);
     ~OgreDetourTileCache(void);
 
-    dtTileCache &
-    GetTileCache () const ;
-
-    //OgreRecast* getRecast(void) { return m_recast; }
+    const dtTileCache &
+    GetTileCache () const
+    {
+       return *m_tileCache ;
+    }
 
     void
     SetDebugger ( NavMeshDebug *debug_instance )
@@ -376,94 +377,6 @@ public:
     bool TileCacheBuild(std::vector<Ogre::Entity*> srcMeshes,
                         const TerrainAreaVector    &area_list ) ;
 
-    /**
-      * Build all navmesh tiles from specified input geom.
-      *
-      * Will issue a configure() call so the inputGeom specified will determine the world bounds
-      * of the tilecache. Therefore you must specify the inputGeom for the entire world.
-      *
-      * @see OgreDetourTileCache::TileCacheBuild(std::vector<Ogre::Entity*>)
-      **/
-    //bool TileCacheBuild(InputGeom *inputGeom);
-
-// TODO maybe provide isLoaded(tx, ty) method
-
-// TODO create better distinction between loading compressed tiles in cache and building navmesh from them?
-
-    /**
-      * Build or rebuild a cache tile at the specified x and y position in the tile grid.
-      * Tile is built or rebuilt no matter whether there was already a tile at that position in the grid
-      * or not. If there previously was a tile in the specified grid position, it is first removed from the
-      * tilecache and replaced with the new one.
-      *
-      * At the moment this will issue an immediate update of the navmesh at the
-      * corresponding tiles. (the alternative is adding a request that is processed as deferred command)
-      *
-      * Note that you can speed this up by building an inputGeom from only the area that is rebuilt.
-      * Don't use an arbitrary bounding box for culling the inputGeom, but use getTileAlignedBox() instead!
-      **/
-    //bool buildTile(const int tx, const int ty, InputGeom *inputGeom);
-
-    //bool buildTile(const dtCompressedTileRef &tile_ref, InputGeom *inputGeom);
-
-    /**
-      * Build or rebuild a cache tiles or tiles that cover the specified bounding box area.
-      *
-      * The tiles are built or rebuilt no matter whether there was already a tile at that position in the grid
-      * or not. If there previously was a tile in the specified grid position, it is first removed from the
-      * tilecache and replaced with the new one.
-      *
-      * Make sure that the specified inputGeom is either the inputGeom of the complete scene (inefficient) or is
-      * built with a tile aligned bounding box (getTileAlignedBox())! The areaToUpdate value can be arbitrary,
-      * but will be converted to a tile aligned box.
-      *
-      * At the moment this will issue an immediate update of the navmesh at the
-      * corresponding tiles. (the alternative is adding a request that is processed as deferred command)
-      **/
-    //void buildTiles(InputGeom *inputGeom, const Ogre::AxisAlignedBox *areaToUpdate = NULL);
-
-    /**
-      * Build or rebuild tile from list of entities.
-      * @see{buildTiles(InputGeom*, const Ogre::AxisAlignedBox*)}
-      **/
-    //void buildTiles(std::vector<Ogre::Entity*> srcEntities, const Ogre::AxisAlignedBox *areaToUpdate = NULL);
-
-    /**
-      * Unload all tiles that cover the specified bounding box. The tiles are removed from the
-      * cache.
-      **/
-    //void unloadTiles(const Ogre::AxisAlignedBox &areaToUpdate);
-
-    /**
-      * Gets grid coordinates of the tile that contains the specified world position.
-      **/
-    //void getTileAtPos(const float* pos, int& tx, int& ty);
-
-    /**
-      * Gets grid coordinates of the tile that contains the specified world position.
-      **/
-    //Ogre::Vector2 getTileAtPos(const Ogre::Vector3 pos);
-
-    /**
-      * Determines whether there is a tile loaded at the specified grid position.
-      **/
-    //bool tileExists(int tx, int ty);
-
-    /**
-      * Determines whether the specified grid index is within the outer bounds of this tilecache.
-      **/
-    //bool isWithinBounds(int tx, int ty);
-
-    /**
-      * Determines whether the specified world position is within the outer bounds of this tilecache,
-      * ie the coordinates are contained within a tile that is within the cache bounds.
-      **/
-    //bool isWithinBounds(Ogre::Vector3 pos);
-
-    //Ogre::AxisAlignedBox getWorldSpaceBounds(void);
-
-    //TileSelection getBounds(void);
-
     bool saveAll(Ogre::String filename);
 
     bool loadAll(Ogre::String filename,
@@ -480,14 +393,7 @@ public:
                       const bool  until_up_to_date); // Continue processing the tile cache obstacles until the entire navmesh is up-to-date
 
     /**
-      * Remove all (cylindrical) temporary obstacles from the tilecache.
-      * The navmesh will be rebuilt after the next (one or more) update()
-      * call.
-      **/
-    //void clearAllTempObstacles(void);
-
-    /**
-      * Add a temporary (cylindrical) obstacle to the tilecache (as a deferred request).
+      * Add a temporary obstacle to the tilecache (as a deferred request).
       * The navmesh will be updated correspondingly after the next (one or many)
       * update() call as a deferred command.
       * If m_tileCache->m_params->maxObstacles obstacles are already added, this call
@@ -496,12 +402,6 @@ public:
       *
       * If successful returns a reference to the added obstacle.
       **/
-   // dtObstacleRef addTempObstacle(Ogre::Vector3 pos);
-   //
-   //dtObstacleRef
-   //addTempObstacle ( const float                       &height,
-   //                  const std::vector <Ogre::Vector3> &verts ) ;
-
    dtObstacleRef
    AddObstacle ( const Ogre::Vector3  &min,
                  const Ogre::Vector3  &max,
@@ -526,115 +426,6 @@ public:
       **/
     bool RemoveObstacle(dtObstacleRef obstacleRef);
 
-    /**
-      * Remove a temporary (cylindrical) obstacle from the tilecache (as a deferred request).
-      * Uses a ray query to find the temp obstacle.
-      * The navmesh will be updated correspondingly after the next (one or many)
-      * update() call as a deferred command.
-      * At one time only MAX_REQUESTS obstacles can be removed, or nothing will happen.
-      **/
-    //dtObstacleRef removeTempObstacle(Ogre::Vector3 raySource, Ogre::Vector3 rayHit);
-
-    /**
-      * Execute a ray intersection query to find the first temporary (cylindrical) obstacle that
-      * hits the ray, if any.
-      **/
-    //dtObstacleRef hitTestObstacle(const dtTileCache* tc, const float* sp, const float* sq);
-
-    /**
-      * Returns a list of tile references to compressed tiles that cover the specified bounding
-      * box area.
-      **/
-    //std::vector<dtCompressedTileRef> getTilesContainingBox(Ogre::Vector3 boxMin, Ogre::Vector3 boxMax);
-
-    /**
-      * Returns a list of tile references to compressed tiles that cover the area of a circle with
-      * specified radius around the specified position.
-      **/
-    //std::vector<dtCompressedTileRef> getTilesAroundPoint(Ogre::Vector3 point, Ogre::Real radius);
-
-    /**
-      * Add a convex shaped temporary obstacle to the tilecache in pretty much the same way as cylindrical
-      * obstacles are added.
-      * Currently this is implemented a lot less efficiently than cylindrical obstacles, as it issues a complete
-      * rebuild of the affected tiles, instead of just cutting out the poly area of the obstacle.
-      * This is a big TODO that I'm holding off because it requires changes to the recast libraries themselves.
-      * I wait in hopes that this feature will appear in the original recast code.
-      * In the meanwhile, if you are looking for this, someone implemented it and shared it on the mailing list:
-      *     http://groups.google.com/group/recastnavigation/msg/92d5f131561ddad1
-      * And corresponding ticket: http://code.google.com/p/recastnavigation/issues/detail?id=206
-      *
-      * The current implementation of convex obstacles is very simple and not deferred. Also obstacles
-      * are stored in the inputGeom, which is not really nice.
-      **/
-//TODO by adding deferred tasking to add and removeConvexShapeObstacle one can add multiple shapes at once to the same tile without it being rebuilt multiple times
-    //int
-    //addConvexShapeObstacle ( ConvexVolume     *obstacle,
-    //                         Ogre::Quaternion orientation = Ogre::Quaternion::IDENTITY,
-    //                         Ogre::Vector3    pivot_point = Ogre::Vector3::ZERO ) ;
-    //
-    //bool
-    //addConvexShapeObstacles ( const std::vector <ConvexVolume *> &obstacle_list,
-    //                          std::vector <int>                  &obstacle_ref_list ) ;
-
-    /**
-      * Remove convex obstacle from the tileCache. The affected navmesh tiles will be rebuilt.
-      **/
-    //bool removeConvexShapeObstacle(ConvexVolume* convexHull);
-
-    /**
-      * Remove convex obstacle with specified id from the tileCache. The affected navmesh tiles will be rebuilt.
-      * If removedObstacle is a valid pointer it will contain a reference to the removed obstacle.
-      **/
-    //bool removeConvexShapeObstacleById(int obstacleIndex, ConvexVolume** removedObstacle = NULL);
-
-    //bool
-    //removeConvexShapeObstaclesById ( const std::vector <int> &obstacleIndexList ) ;
-
-    /**
-      * Raycast the inputGeom and remove the hit convex obstacle. The affected navmesh tiles will be rebuilt.
-      * If removedObstacle is a valid pointer it will contain a reference to the removed obstacle.
-      **/
-    //int removeConvexShapeObstacle(Ogre::Vector3 raySource, Ogre::Vector3 rayHit, ConvexVolume** removedObstacle = NULL);
-
-    /**
-      * Returns the id of the specified convex obstacle. Returns -1 if this obstacle is not currently added to the tilecache.
-      * Note: Ids are just array indexes and can change when obstacles are added or removed. Use with care!
-      **/
-    //int getConvexShapeObstacleId(ConvexVolume *convexHull);
-
-    /**
-      * Returns the convex obstacle with specified id or index.
-      **/
-    //ConvexVolume* getConvexShapeObstacle(int obstacleIndex);
-
-    /**
-      * Raycast inputGeom to find intersection with a convex obstacle. Returns the id of the hit
-      * obstacle, -1 if none hit.
-      **/
-    //int hitTestConvexShapeObstacle(Ogre::Vector3 raySource, Ogre::Vector3 rayHit);
-
-    /**
-      * Debug draw the tile at specified grid location.
-      **/
-    //void drawDetail(const int tx, const int ty);
-
-    /**
-      * Debug draw all tiles in the navmesh.
-      **/
-    //void drawNavMesh(void);
-
-    /**
-     * Max number of layers a tile can have
-     **/
-    static const int EXPECTED_LAYERS_PER_TILE;
-
-    /**
-     *
-     * Extra padding added to the border size of tiles (together with agent radius)
-     **/
-    static const float BORDER_PADDING;
-
 private:
     /**
       * Configure the tilecache for building navmesh tiles from the specified input geometry.
@@ -644,50 +435,7 @@ private:
       * to initialize.
       * This method has to be called once after construction, and before any tile builds happen.
       **/
-    bool configure(InputGeom *inputGeom);
-
-   /**
-      * Find tiles that (partially or completely) intersect the specified bounding area.
-      * The selectionArea has to be in world units.
-      * TileCache needs to be configured before this method can work (needs to know world size
-      * of tilecache).
-      * TileSelection contains bounding box aligned to the tile bounds and tx ty index ranges
-      * for the affected tiles. Note that tile ranges are inclusive! (eg. if minTx=1 and maxTx=1
-      * then tile at x=1 has to be rebuilt)
-      * It is not necessary for tiles to be already built in order for
-      * them to be included in the selection.
-      * Make sure you use the included bounding box instead of an arbitrary selection bounding
-      * box to bound inputGeom used for rebuilding tiles. Or you might not include all geometry
-      * needed to rebuild all affected tiles correctly.
-      **/
-    TileSelection getTileSelection(const Ogre::AxisAlignedBox &selectionArea);
-
-    /**
-      * Returns a bounding box that matches the tile bounds of this cache and that is at least
-      * as large as the specified selectionArea bounding box. Height (y) coordinates will be set
-      * to the min and max height of this tilecache. (tile selection only happens in x-z plane).
-      * Use this function to get correct bounding boxes to cull your inputGeom or scene geometry
-      * with for tile rebuilding.
-      **/
-    //Ogre::AxisAlignedBox getTileAlignedBox(const Ogre::AxisAlignedBox &selectionArea);
-
-    /**
-      * Returns the world-space bounds of the tile at specified grid position.
-      * Make sure that tx and ty satisfy isWithinBounds(tx, ty).
-      **/
-    //Ogre::AxisAlignedBox getTileBounds(int tx, int ty);
-
-    /**
-      * The size of one tile in world units.
-      * This equals the number of cells per tile, multiplied with the cellsize.
-      **/
-    inline Ogre::Real getTileSize(void) { return m_tileSize*m_cellSize; }
-
-    /**
-      * Remove the tile with specified reference from the tilecache. The associated navmesh tile will also
-      * be removed.
-      **/
-    bool removeTile(dtCompressedTileRef tileRef);
+    bool configure();
 
     /**
       * Build the 2D navigation grid divided in layers that is the intermediary format stored in the tilecache.
@@ -697,18 +445,12 @@ private:
       * This process uses a large part of the recast navmesh building pipeline (implemented in OgreRecast::NavMeshBuild()),
       * up till step 4.
       **/
-    int rasterizeTileLayers(InputGeom* geom, const int tx, const int ty, const rcConfig& cfg, TileCacheData* tiles, const int maxTiles);
-
-    /**
-      * Debug draw a navmesh poly
-      **/
-    //void drawPolyMesh(const Ogre::String tileName, const struct dtTileCachePolyMesh &mesh, const float *orig, const float cs, const float ch, const struct dtTileCacheLayer &regionLayers, bool colorRegions=true);
+    int rasterizeTileLayers(const int tx, const int ty, TileCacheData* tiles, const int maxTiles);
 
     /**
       * Inits the tilecache. Helper used by constructors.
       **/
     bool initTileCache(void);
-
 
     /**
       * InputGeom from which the tileCache is initially inited (it's bounding box is considered the bounding box
@@ -797,9 +539,6 @@ private:
 
     bool         TempObstacleAdded ;
     NavMeshDebug *NavMeshDebugInstance ;
-
-    static const int TILECACHESET_MAGIC = 'T'<<24 | 'S'<<16 | 'E'<<8 | 'T'; //'TSET';
-    static const int TILECACHESET_VERSION = 2;
 
     struct TileCacheSetHeader
     {

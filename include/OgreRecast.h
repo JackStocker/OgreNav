@@ -38,7 +38,7 @@
 
 #include "OgreRecastDefinitions.h"
 #include <Ogre.h>
-#include "RecastInputGeom.h"
+#include "InputGeom.h"
 
 struct DebugTile
 {
@@ -568,8 +568,6 @@ private:
 class OgreDetourTileCache;
 class OgreDetourCrowd;
 
-
-
 /**
   * This class serves as a wrapper between Ogre and Recast/Detour
   * It's not a full wrapper, but instead offers the main features needed
@@ -591,37 +589,6 @@ public:
        return m_navQuery;
     }
 
-    /**
-      * The agent radius for which this navmesh is built.
-      **/
-    //float getAgentRadius(void);
-
-    /**
-      * The agent height for which this navmesh is built.
-      **/
-    //float getAgentHeight(void);
-
-    /**
-      * The amount with which the drawn debug path is offset from the ground
-      **/
-    //float getPathOffsetFromGround(void);
-
-    /**
-      * The amount with which the drawn debug navmesh polys are offset from the ground.
-      **/
-    //float getNavmeshOffsetFromGround(void);
-
-    /**
-      * Size of each cell (the length of one dimension on the x-y plane) in world
-      * units.
-      **/
-    //float getCellSize(void) { return m_cellSize; }
-
-    /**
-      * Height in world units of one navmesh cell.
-      **/
-    //float getCellHeight(void) { return m_cellHeight; }
-
    /**
      * Cleanup recast parameters and variables.
      * This does not clean up the objects related to debug drawing.
@@ -633,23 +600,6 @@ public:
      * Sets m_cfg and other parameters.
      **/
    void configure(OgreRecastConfigParams params);
-
-   /**
-     * Build a navigation mesh from the specified list of Ogre::Entities as source.
-     * It is required that all supplied entities are attached to a scenenode in the scene
-     * before calling this method.
-     *
-     * Recast will construct a navmesh using some configuration parameters, which are currently
-     * just set inside this method, but should be extracted to somewhere else in the future.
-     * The most important parameters to set are cellsize, agentHeight and agentRadius.
-     **/
-   //bool NavMeshBuild(std::vector<Ogre::Entity*> srcMeshesA);
-
-   /**
-     * Build a navmesh from the specified input geometry.
-     * @see{OgreRecast::NavMeshBuild(std::vector<Ogre::Entity*>)}
-     **/
-   //bool NavMeshBuild(InputGeom* input);
 
    /**
     * Find a path beween start point and end point and, if possible, generates a list of lines in a path.
@@ -685,70 +635,6 @@ public:
    std::vector<Ogre::Vector3> getPath(int pathSlot);
 
    /**
-     * The ID number identifying the target for the path at specified slot. Targets have
-     * no meaning for OgreRecast but you can use them to give them their own meanings.
-     * Returns 0 when a faulty pathSlot is given.
-     **/
-   //int getTarget(int pathSlot);
-
-   /**
-     * Draw the nav mesh for debug purposes. The navmesh is converted to an Ogre::Mesh and
-     * put inside the scene for rendering.
-     **/
-   //void drawNavMesh(void);
-
-   /**m_navQuery
-     * Calculate visual Ogre meshes to visualize the recast navigation mesh for debugging.
-     *
-     * Convert the calculated navmesh into an Ogre::ManualObject mesh, and put it in the scene.
-     * A scenenode with name "RecastSN" will be created in the root of the scenegraph. This
-     * scenenode is referenced by the m_pRecastSN member variable.
-     *
-     * Within this scenenode a mesh with name "RecastMOWalk" will be added, which is stored in
-     * member variable m_pRecastMOWalk. This mesh will represents the faces of the segments in
-     * the navmesh. Not the lines indicating the edges of the navmesh.
-     *
-     * The manual object referenced by member variable m_pRecastMONeighbour and with name
-     * "RecastMONeighbour" is also added to the same scenenode. This object contains the lines
-     * between neighbouring segments of the navmesh. These are all except the outer edges of
-     * the navmesh.
-     *
-     * Finally, the manual object referenced by member variable m_pRecastMOBoundary and with name
-     * "RecastMOBoundary" is added to the scene node. It is a collection of lines that represent
-     * the outer edges of the navmesh, being the ones that do not have any neighbouring segments.
-     **/
-   //void CreateRecastPolyMesh(const Ogre::String name, const unsigned short *verts, const int nverts,
-   //                          const unsigned short *polys, const int npolys, const unsigned char *areas,
-   //                          const int maxpolys, const unsigned short *regions, const int nvp,
-   //                          const float cs, const float ch, const float *orig, bool colorRegions=true);
-
-   /**
-     * Returns the poly filter that will be used for all (random) point and nearest poly searches,
-     * as well as for pathfinding.
-     **/
-   //dtQueryFilter getFilter(void);
-
-   /**
-     * Set the poly filter that will be used for all (random) point and nearest poly searches,
-     * as well as for pathfinding.
-     **/
-   //void setFilter(const dtQueryFilter filter);
-
-   /**
-     * Get the offset size (box) around points used to look for nav polygons.
-     * This offset is used in all search for points on the navmesh.
-     * The maximum offset that a specified point can be off from the navmesh.
-     **/
-   //Ogre::Vector3 getPointExtents(void);
-
-   /**
-     * Set the offset size (box) around points used to look for nav polygons.
-     * This offset is used in all search for points on the navmesh.
-     * The maximum offset that a specified point can be off from the navmesh.
-     **/
-   //void setPointExtents(Ogre::Vector3 extents);
-
-   /**
      * Find a point on the navmesh closest to the specified point position, within predefined
      * bounds.
      * Returns true if such a point is found (returned as resultPt), returns false
@@ -757,20 +643,6 @@ public:
    bool findNearestPointOnNavmesh(Ogre::Vector3 position, const unsigned int include_flags, const unsigned int exclude_flags, Ogre::Vector3 &resultPt);
 
    bool findNearestPolyOnNavmesh(Ogre::Vector3 position, const unsigned int include_flags, const unsigned int exclude_flags, Ogre::Vector3 &resultPt, dtPolyRef &resultPoly);
-
-   /**
-     * Returns a random point on the navmesh.
-     **/
-   //Ogre::Vector3 getRandomNavMeshPoint();
-
-   /**
-     * Returns a random point on the navmesh that is within the circle of specified radius
-     * and center. Will return a random point within each navmesh polygon that touches the
-     * circle (so the exact point could in fact be a little outside of the specified circle).
-     * Returns center when no random point can be found (eg. center is too far from a navmesh
-     * poly).
-     **/
-   //Ogre::Vector3 getRandomNavMeshPointInCircle(Ogre::Vector3 center, Ogre::Real radius);
 
    /**
      * Convenience function for converting between Ogre::Vector3
@@ -784,105 +656,12 @@ public:
     **/
    static void FloatAToOgreVect3(const float* vect, Ogre::Vector3 &result);
 
-   /**
-     * Translate error code of detour findPath into a readable explanation.
-     **/
-   //Ogre::String getPathFindErrorMsg(int errorCode);
-
-   /**
-     * The configuration of the recast navmesh.
-     **/
-   //rcConfig getConfig(void);
-
-   //OgreRecastNavmeshPruner* getNavmeshPruner(void);
-
-   //const std::vector <DebugTile> &
-   //GetDebugTileList () const ;
-
-   //rcCompactHeightfield&
-   //GetCompactHeightField () const ;
-
 protected:
-   /**
-     * Draw the specified recast poly mesh to scene for debugging.
-     **/
-   //void drawPolyMesh(const struct rcPolyMesh &mesh, bool colorRegions=true);
-
-
-   //unsigned char* m_triareas;
-   //rcHeightfield* m_solid;
-   //rcCompactHeightfield* m_chf;
-   //rcContourSet* m_cset;
-   //rcPolyMesh* m_pmesh;
    rcConfig m_cfg;
    rcContext* m_ctx;
-   //rcPolyMeshDetail* m_dmesh;
 
-   //class InputGeom* m_geom;
    class dtNavMesh* m_navMesh;
    class dtNavMeshQuery* m_navQuery;
-   //unsigned char m_navMeshDrawFlags;
-
-   //float m_cellSize;
-   //float m_cellHeight;
-   //float m_agentHeight;
-   //float m_agentRadius;
-   //float m_agentMaxClimb;
-   //float m_agentMaxSlope;
-   //float m_regionMinSize;
-   //float m_regionMergeSize;
-   //float m_edgeMaxLen;
-   //float m_edgeMaxError;
-   //int m_vertsPerPoly;
-   //float m_detailSampleDist;
-   //float m_detailSampleMaxError;
-   //bool m_keepInterResults ;
-
-   // Off-Mesh connections.  Not used yet.
-   //static const int MAX_OFFMESH_CONNECTIONS = 256;
-   //float m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*3*2];
-   //float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
-   //unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
-   //unsigned char m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];
-   //unsigned short m_offMeshConFlags[MAX_OFFMESH_CONNECTIONS];
-   //unsigned int m_offMeshConId[MAX_OFFMESH_CONNECTIONS];
-   //int m_offMeshConCount;
-
-
-   // helper debug drawing stuff
-   //int m_nAreaCount ;
-   //bool m_rebuildSg;
-
-   //float m_flTestStart[3] ;
-   //float m_flTestEnd[3] ;
-
-   //float *m_normals;
-   //int m_flDataX;
-   //int m_flDataY;
-
-   /**
-     * Offset that the debug path is drawn from the ground.
-     **/
-   //float m_pathOffsetFromGround;
-
-   /**
-     * Offset that the debug navmesh is drawn from the ground.
-     **/
-   //float m_navMeshOffsetFromGround;
-
-   /**
-     * Offset that the navmesh edges are drawn from the ground.
-     **/
-   //float m_navMeshEdgesOffsetFromGround;
-
-   /**
-     * Colours used for the various debug drawing objects.
-     **/
-   //Ogre::ColourValue m_navmeshNeighbourEdgeCol;
-   //Ogre::ColourValue m_navmeshOuterEdgeCol;
-   //Ogre::ColourValue m_navmeshGroundPolygonCol;
-   //Ogre::ColourValue m_navmeshOtherPolygonCol;
-   //Ogre::ColourValue m_pathCol;
 
    /**
     * Stores all created paths
@@ -901,24 +680,9 @@ protected:
      **/
    float mExtents[3];
 
-   Ogre::LogManager* m_pLog;
-
-   //OgreRecastNavmeshPruner *mNavmeshPruner;
-
 private:
-   /**
-     * Retrieve the vertices from a manual object, even if they are not referenced by faces.
-     * Does not retrieve faces, as it is intended to retrieve line drawings.
-     **/
-   //std::vector <Ogre::Vector3> getManualObjectVertices ( Ogre::ManualObject *man ) ;
-
-   //std::vector <DebugTile> DebugTileList ;
-
    // Friend OgreDetourTileCache so it can access the navmesh of this component
    friend class OgreDetourTileCache;
-
-   // Friend OgreDetourCrowd so it can access the navmesh of this component
-   //friend class OgreDetourCrowd;
 };
 
 #endif // #ifndef __OgreRecast_h_
