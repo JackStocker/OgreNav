@@ -37,8 +37,8 @@
 #define RECASTINPUTGEOM_H
 
 #include <Ogre.h>
-#include <Terrain/OgreTerrain.h>
-#include <Terrain/OgreTerrainGroup.h>
+#include <OgreTerrain.h>
+#include <OgreTerrainGroup.h>
 #include "RecastConvexHull.h"
 
 
@@ -75,7 +75,6 @@ struct rcChunkyTriMesh
         int maxTrisPerChunk;
 };
 
-
 /// Creates partitioned triangle mesh (AABB tree),
 /// where each node contains at max trisPerChunk triangles.
 bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
@@ -86,10 +85,6 @@ int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm, float bmin[2], float b
 
 /// Returns the chunk indices which overlap the input segment.
 int rcGetChunksOverlappingSegment(const rcChunkyTriMesh* cm, float p[2], float q[2], int* ids, const int maxIds);
-
-
-
-
 
 /**
   * Helper class to manage input geometry used as input for recast
@@ -136,7 +131,7 @@ public:
       * The entity part is the same as @see{InputGeom(std::vector<Ogre::Entity*>)}
       * Terrain geometry is added from highest LOD level of terrain.
       **/
-    InputGeom(Ogre::TerrainGroup *terrainGroup, std::vector<Ogre::Entity*> srcMeshes = std::vector<Ogre::Entity*>());
+    //InputGeom(Ogre::TerrainGroup *terrainGroup, std::vector<Ogre::Entity*> srcMeshes = std::vector<Ogre::Entity*>());
 
     /**
       * Create inputGeom from terrain and entity polys that fall within specified bounding box, for rebuilding only tiles that fall within the box.
@@ -144,13 +139,13 @@ public:
       * For entities only simple bounding box tests happen for determining whether an entity should be added in its entirety to this inputGeom or not.
       * Make sure to adapt your tileBounds fall together with the tilecache bounds so that they cover exactly the tiles you want to rebuild.
       **/
-    InputGeom(const Ogre::AxisAlignedBox &tileBounds, Ogre::TerrainGroup *terrainGroup, std::vector<Ogre::Entity*> srcMeshes = std::vector<Ogre::Entity*>());
+    //InputGeom(const Ogre::AxisAlignedBox &tileBounds, Ogre::TerrainGroup *terrainGroup, std::vector<Ogre::Entity*> srcMeshes = std::vector<Ogre::Entity*>());
 
     /**
       * Output inputGeom to obj wavefront file.
       * This can be used to test your inputGeom in the original recast demo (which loads .obj files).
       **/
-    void writeObj(Ogre::String filename);
+    //void writeObj(Ogre::String filename);
 
     /**
       * Retrieve a bounding box for the entire inputGeom, in world space
@@ -198,41 +193,41 @@ public:
       * subsequent three floats are in order the x, y and z coordinates of a vert. The size of this array is
       * always a multiple of three and is exactly 3*getVertCount().
       **/
-    float* getVerts(void);
+    const float* getVerts(void) const;
 
     /**
       * The number of vertices stored in this inputGeom.
       **/
-    int getVertCount(void);
+    int getVertCount(void) const;
 
     /**
       * Retrieves the tris stored in this inputGeom.
       * A tri is defined by a sequence of three indexes which refer to an index position in the getVerts() array.
       * Similar to getVerts, the size of this array is a multitude of 3 and is exactly 3*getTriCount().
       **/
-    int* getTris(void);
+    const int* getTris(void) const;
 
     /**
       * The number of triangles stored in this inputGeom.
       **/
-    int getTriCount(void);
+    int getTriCount(void) const;
 
     /**
       * Retrieve the normals calculated for this inputGeom. Note that the normals are not exact and are not meant for rendering,
       * but they are good enough for navmesh calculation. Each normal corresponds to one vertex from getVerts() with the same index.
       * The size of the normals array is 3*getVertCount().
       **/
-    float* getNormals(void);
+    const float* getNormals(void) const;
 
     /**
       * The axis aligned bounding box minimum of this input Geom.
       **/
-    float* getMeshBoundsMin(void);
+    const float* getMeshBoundsMin(void) const;
 
     /**
       * The axis aligned bounding box maximum of this input Geom.
       **/
-    float* getMeshBoundsMax(void);
+    const float* getMeshBoundsMax(void) const;
 
     /**
       * Determines whether this inputGeom has no geometry stored.
@@ -244,12 +239,12 @@ public:
       * Use this to verify whether the generated geometry in this inputGeom matches the geometry in your scene.
       * Draws all inputGeom vertices as points in the scene.
       **/
-    void debugMesh(Ogre::SceneManager *sceneMgr);
+    //void debugMesh(Ogre::SceneManager *sceneMgr);
 
     /**
       * Maximum number of convex volume obstacles that can be added to this inputGeom.
       **/
-    static const int MAX_VOLUMES = 256;
+    static const int MAX_VOLUMES = 1024;
 
 
     /**
@@ -306,13 +301,13 @@ public:
     /**
       * Raycast this inputGeometry.
       **/
-    bool raycastMesh(float* src, float* dst, float& tmin);
+    //bool raycastMesh(float* src, float* dst, float& tmin);
 
     /**
       * See OgreDetourTileCache::hitTestObstacle, but here it serves for
       * finding convexVolumes.
       **/
-    int hitTestConvexVolume(const float* sp, const float* sq);
+    //int hitTestConvexVolume(const float* sp, const float* sq);
 
     /**
       * Retrieve the convex volume obstacle with specified index from this inputGeom.
@@ -323,16 +318,16 @@ public:
 // TODO off-mesh connections not implemented yet
     /// @name Off-Mesh connections.
     ///@{
-    int getOffMeshConnectionCount() const { return m_offMeshConCount; }
-    const float* getOffMeshConnectionVerts() const { return m_offMeshConVerts; }
-    const float* getOffMeshConnectionRads() const { return m_offMeshConRads; }
-    const unsigned char* getOffMeshConnectionDirs() const { return m_offMeshConDirs; }
-    const unsigned char* getOffMeshConnectionAreas() const { return m_offMeshConAreas; }
-    const unsigned short* getOffMeshConnectionFlags() const { return m_offMeshConFlags; }
-    const unsigned int* getOffMeshConnectionId() const { return m_offMeshConId; }
-    void addOffMeshConnection(const float* spos, const float* epos, const float rad,
-                              unsigned char bidir, unsigned char area, unsigned short flags);
-    void deleteOffMeshConnection(int i);
+    //int getOffMeshConnectionCount() const { return m_offMeshConCount; }
+    //const float* getOffMeshConnectionVerts() const { return m_offMeshConVerts; }
+    //const float* getOffMeshConnectionRads() const { return m_offMeshConRads; }
+    //const unsigned char* getOffMeshConnectionDirs() const { return m_offMeshConDirs; }
+    //const unsigned char* getOffMeshConnectionAreas() const { return m_offMeshConAreas; }
+    //const unsigned short* getOffMeshConnectionFlags() const { return m_offMeshConFlags; }
+    //const unsigned int* getOffMeshConnectionId() const { return m_offMeshConId; }
+    //void addOffMeshConnection(const float* spos, const float* epos, const float rad,
+    //                          unsigned char bidir, unsigned char area, unsigned short flags);
+    //void deleteOffMeshConnection(int i);
     ///@}
 
     /// @name Box Volumes.
@@ -345,7 +340,6 @@ public:
     void drawConvexVolumes(struct duDebugDraw* dd, bool hilight = false);
     int getConvexVolumeId(ConvexVolume *convexHull);
     ///@}
-
 
     /**
       * Create a convex hull that fits around the points
@@ -364,7 +358,7 @@ public:
       * You probably only want to create convex hulls from single
       * entities or a few entities that are close together.
       **/
-    ConvexVolume* getConvexHull(Ogre::Real offset = 0.0f);
+    //ConvexVolume* getConvexHull(Ogre::Real offset = 0.0f);
 
 private:
     /**
@@ -456,14 +450,14 @@ private:
 // Not implemented yet
     /// @name Off-Mesh connections.
     ///@{
-    static const int MAX_OFFMESH_CONNECTIONS = 256;
-    float m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*3*2];
-    float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
-    unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
-    unsigned char m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];
-    unsigned short m_offMeshConFlags[MAX_OFFMESH_CONNECTIONS];
-    unsigned int m_offMeshConId[MAX_OFFMESH_CONNECTIONS];
-    int m_offMeshConCount;
+    //static const int MAX_OFFMESH_CONNECTIONS = 256;
+    //float m_offMeshConVerts[MAX_OFFMESH_CONNECTIONS*3*2];
+    //float m_offMeshConRads[MAX_OFFMESH_CONNECTIONS];
+    //unsigned char m_offMeshConDirs[MAX_OFFMESH_CONNECTIONS];
+    //unsigned char m_offMeshConAreas[MAX_OFFMESH_CONNECTIONS];
+    //unsigned short m_offMeshConFlags[MAX_OFFMESH_CONNECTIONS];
+    //unsigned int m_offMeshConId[MAX_OFFMESH_CONNECTIONS];
+    //int m_offMeshConCount;
     ///@}
 
     /// @name Convex Volumes (temporary) added to this geometry.
