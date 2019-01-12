@@ -44,14 +44,14 @@
   **/
 
 // recast/detour stuff
-#include "Recast/Recast.h"
-#include "Detour/DetourNavMesh.h"
-#include "Detour/DetourNavMeshBuilder.h"
-#include "Detour/DetourNavMeshQuery.h"
+#include "Recast.h"
+#include "DetourNavMesh.h"
+#include "DetourNavMeshBuilder.h"
+#include "DetourNavMeshQuery.h"
 
 #define MAX_PATHSLOT      128 // how many paths we can store
-#define MAX_PATHPOLY      256 // max number of polygons in a path
-#define MAX_PATHVERT      512 // most verts in a path 
+#define MAX_PATHPOLY      512 // max number of polygons in a path
+#define MAX_PATHVERT      1024 // most verts in a path
 
 // structure for storing output straight line paths
 typedef struct
@@ -64,28 +64,42 @@ typedef struct
 }
 PATHDATA ;
 
-// These are just sample areas to use consistent values across the samples.
-// The use should specify these base on his needs.
-
-// bzn most aren't used yet, just SAMPLE_POLYAREA_GROUND and SAMPLE_POLYFLAGS_WALK
-enum SamplePolyAreas
+enum PolyAreas : unsigned short // Each area can only have one type
 {
-   SAMPLE_POLYAREA_GROUND,
-   SAMPLE_POLYAREA_WATER,
-   SAMPLE_POLYAREA_ROAD,
-   SAMPLE_POLYAREA_DOOR,
-   SAMPLE_POLYAREA_GRASS,
-   SAMPLE_POLYAREA_JUMP,
-};
-enum SamplePolyFlags
-{
-   SAMPLE_POLYFLAGS_WALK = 0x01,      // Ability to walk (ground, grass, road)
-   SAMPLE_POLYFLAGS_SWIM = 0x02,      // Ability to swim (water).
-   SAMPLE_POLYFLAGS_DOOR = 0x04,      // Ability to move through doors.
-   SAMPLE_POLYFLAGS_JUMP = 0x08,      // Ability to jump.
-   SAMPLE_POLYFLAGS_DISABLED	= 0x10,		// Disabled polygon
-   SAMPLE_POLYFLAGS_ALL = 0xffff      // All abilities.
-};
+   // Ground area types
+   POLYAREA_GRASS       = 0x0001,
+   POLYAREA_WATER       = 0x0002,
+   POLYAREA_ROAD        = 0x0004,
+   POLYAREA_SAND        = 0x0008,
+   POLYAREA_GATE        = 0x0010,
+   POLYAREA_TYPE_MASK   = 0xFFFF,
+} ;
 
+enum PolyFlags : unsigned short // Each poly can have multiple flags in a mask where one bit must pass in order to accept the poly
+{
+   // Movement types
+   POLYFLAGS_WALK        = 0x0001, // Any land poly area
+   POLYFLAGS_FLOAT       = 0x0002, // Any water poly area
+   POLYFLAGS_MOVE_MASK   = 0x000F,
+
+   // TODO: This might mean that a player fails the TYPE check but passes the PLAYER check and so the flag include is passed
+
+   // Player restrictions
+   POLYFLAGS_PLAYER_1    = 0x0010,
+   POLYFLAGS_PLAYER_2    = 0x0020,
+   POLYFLAGS_PLAYER_3    = 0x0040,
+   POLYFLAGS_PLAYER_4    = 0x0080,
+   POLYFLAGS_PLAYER_5    = 0x0100,
+   POLYFLAGS_PLAYER_6    = 0x0200,
+   POLYFLAGS_PLAYER_7    = 0x0400,
+   POLYFLAGS_PLAYER_8    = 0x0800,
+   POLYFLAGS_PLAYER_9    = 0x1000,
+   POLYFLAGS_PLAYER_10   = 0x2000,
+   POLYFLAGS_PLAYER_11   = 0x4000,
+   POLYFLAGS_PLAYER_12   = 0x8000,
+   POLYFLAGS_ALL_PLAYERS = 0xFFF0,
+
+   POLYFLAGS_ALL         = 0xFFFF, // All poly areas
+} ;
 
 #endif // #ifndef __OgreRecastDefinitions_h_

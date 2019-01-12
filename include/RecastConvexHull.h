@@ -82,12 +82,17 @@ public:
       * Create a convex hull in 2D space (on the xz plane) from
       * the specified 3D points.
       **/
-    ConvexVolume(InputGeom *geom, float offset = 0.0f);
+    ConvexVolume(InputGeom *geom, int new_area, float offset = 0.0f);
 
     /**
       * Create a convex hull from a bounding box
       **/
-    ConvexVolume(Ogre::AxisAlignedBox boundingBox, float offset = 0.0f);
+    ConvexVolume(Ogre::AxisAlignedBox boundingBox, int new_area, float offset = 0.0f);
+
+    /**
+      * Create a convex hull from verticies
+      **/
+    ConvexVolume ( std::vector <Ogre::Vector3> verts, int new_area, float offset = 0.0f ) ;
 
     /**
       * Move this convex hull to a new world position offset with specified
