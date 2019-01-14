@@ -1,3 +1,5 @@
+#pragma once
+
 #include "DetourNavMeshQuery.h"
 
 class PlayerFlagQueryFilter : public dtQueryFilter

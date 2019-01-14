@@ -3,6 +3,7 @@
 
 // Detour
 #include "OgreDetourTileCache.h"
+#include "OgreRecast.h"
 
 struct Tile
 {
@@ -37,8 +38,23 @@ IntToColour ( const int   integer,
    return Ogre::ColourValue ( r * 0.25f, g * 0.25f, b * 0.25f, alpha_percent ) ;
 }
 
+unsigned int
+CountSetBits ( unsigned int number )
+{
+   unsigned int bit_count = 0 ;
+
+   while ( number > 0 )
+   {
+       bit_count += ( number & 1 ) ;
+       number >>= 1 ;
+   }
+
+   return bit_count ;
+}
+
 Ogre::ColourValue
-AreaToColour ( const unsigned int area_id )
+AreaToColour ( const unsigned int area_id,
+               const unsigned int flags = 0 )
 {
    switch ( area_id )
    {
@@ -56,7 +72,9 @@ AreaToColour ( const unsigned int area_id )
       }
    case POLYAREA_GATE :
       {
-         return Ogre::ColourValue ( 0, 1, 1, 1 ) ; // cyan
+         const auto  bits_set   = CountSetBits ( flags & POLYFLAGS_ALL_PLAYERS ) ;
+         const float visibility = std::min ( bits_set * 0.5f, 1.0f ) ;
+         return ( Ogre::ColourValue ( 0, 1, 1, 1 ) * visibility ) ; // cyan
       }
    case POLYAREA_SAND :
       {
@@ -74,12 +92,12 @@ PointDistanceToLine2d ( const float *point,
                         const float *line_start,
                         const float *line_end )
 {
-   float line_delta_x        = line_end [ 0 ] - line_start [ 0 ] ;
-   float line_delta_z        = line_end [ 2 ] - line_start [ 2 ] ;
-   float point_delta_x       = point [ 0 ] - line_start [ 0 ] ;
-   float point_delta_z       = point [ 2 ] - line_start [ 2 ] ;
-   float squared_line_delta  = ( ( line_delta_x * line_delta_x ) + ( line_delta_z * line_delta_z ) ) ;
-   float squared_point_delta = ( ( line_delta_x * point_delta_x ) + ( line_delta_z * point_delta_z ) ) ;
+   const float line_delta_x        = line_end [ 0 ] - line_start [ 0 ] ;
+   const float line_delta_z        = line_end [ 2 ] - line_start [ 2 ] ;
+   float       point_delta_x       = point [ 0 ] - line_start [ 0 ] ;
+   float       point_delta_z       = point [ 2 ] - line_start [ 2 ] ;
+   float       squared_line_delta  = ( ( line_delta_x * line_delta_x ) + ( line_delta_z * line_delta_z ) ) ;
+   float       squared_point_delta = ( ( line_delta_x * point_delta_x ) + ( line_delta_z * point_delta_z ) ) ;
 
    if ( squared_line_delta != 0 )
    {
@@ -94,9 +112,13 @@ PointDistanceToLine2d ( const float *point,
 }
 
 NavMeshDebug::
-NavMeshDebug ( const OgreDetourTileCache &ogre_tile_cache ) :
+NavMeshDebug ( const dtTileCache    &tile_cache,
+               const dtNavMesh      &nav_mesh,
+               const dtNavMeshQuery &nav_query ) :
    CurrentDebugManager ( DebugManager::GetDebugManager () ),
-   OgreTileCache       ( ogre_tile_cache )
+   TileCache           ( tile_cache ),
+   NavMesh             ( nav_mesh ),
+   NavQuery            ( nav_query )
 {
    GridDebugId      = INVALID_DEBUG_ID ;
    InputMeshDebugId = INVALID_DEBUG_ID ;
@@ -127,8 +149,7 @@ SetDrawTiles ( const bool draw_tiles )
       }
       else
       {
-         DrawAllTiles ( *OgreTileCache.GetNavMesh (),
-                        *OgreTileCache.GetNavQuery () ) ;
+         DrawAllTiles ( NavMesh, NavQuery ) ;
       }
    }
 }
@@ -147,15 +168,15 @@ SetDrawObstacles ( const bool draw_obstacles )
       }
       else
       {
-         DrawAllObstacles ( OgreTileCache.GetTileCache () ) ;
+         DrawAllObstacles ( TileCache ) ;
       }
    }
 }
 
 void
 NavMeshDebug::
-RedrawTile ( const std::size_t tile_x,
-             const std::size_t tile_z )
+RedrawTile ( const std::size_t    tile_x,
+             const std::size_t    tile_z )
 {
    // Find or create tile
    auto tile_iter = std::find_if ( TileList.begin (),
@@ -191,11 +212,31 @@ RedrawTile ( const std::size_t tile_x,
       tile.DotList.clear () ;
    }
 
-   const dtMeshTile *tile = OgreTileCache.GetNavMesh ()->getTileAt ( tile_x, tile_z, 0 ) ;
+   const dtMeshTile *tile = NavMesh.getTileAt ( tile_x, tile_z, 0 ) ;
 
    if ( tile )
    {
-      DrawTile ( *OgreTileCache.GetNavMesh (), *OgreTileCache.GetNavQuery (), *tile, *tile_iter ) ;
+      DrawTile ( NavMesh.getPolyRefBase ( tile ), NavQuery, *tile, *tile_iter ) ;
+   }
+}
+
+void
+NavMeshDebug::
+RedrawAllTilesUnderObstacles ()
+{
+   for ( int obstacle_index = 0 ; obstacle_index < TileCache.getObstacleCount () ; ++obstacle_index )
+   {
+      const dtTileCacheObstacle *obstacle = TileCache.getObstacle ( obstacle_index ) ;
+
+      for ( int tile_index = 0 ; tile_index < obstacle->ntouched ; ++tile_index )
+      {
+         const dtCompressedTile *tile = TileCache.getTileByRef ( obstacle->touched [ tile_index ] ) ;
+
+         if ( tile )
+         {
+            RedrawTile ( tile->header->tx, tile->header->ty ) ;
+         }
+      }
    }
 }
 
@@ -245,9 +286,7 @@ RedrawAll ()
    RemoveGrid () ;
    RemoveInputMesh () ;
 
-   DrawEntireNavMesh ( OgreTileCache.GetTileCache (),
-                       *OgreTileCache.GetNavMesh (),
-                       *OgreTileCache.GetNavQuery () ) ;
+   DrawEntireNavMesh ( TileCache, NavMesh, NavQuery ) ;
 }
 
 void
@@ -281,7 +320,7 @@ DrawAllTiles ( const dtNavMesh      &mesh,
       {
          Tile new_tile = { tile->header->x, tile->header->y } ;
 
-         DrawTile ( mesh, query, *tile, new_tile ) ;
+         DrawTile ( mesh.getPolyRefBase ( tile ), query, *tile, new_tile ) ;
 
          TileList.emplace_back ( new_tile ) ;
       }
@@ -458,13 +497,13 @@ RemoveInputMesh ()
 
 void
 NavMeshDebug::
-DrawTile ( const dtNavMesh      &mesh,
+DrawTile ( const dtPolyRef      base_polyref,
            const dtNavMeshQuery &query,
            const dtMeshTile     &tile,
            Tile                 &debug_tile )
 {
    // Draw polys that make up the tile
-   debug_tile.PolygonList.push_back ( DrawTilePolys ( mesh, query, tile ) ) ;
+   debug_tile.PolygonList.push_back ( DrawTilePolys ( base_polyref, query, tile ) ) ;
 
    // Draw inter poly boundaries
    debug_tile.PolygonList.push_back ( DrawTilePolyBoundaries ( tile, Ogre::ColourValue ( 0, 0.188f, 0.25f, 0.125f ), 1.5f, true ) ) ;
@@ -498,11 +537,18 @@ DrawPolysWithFlags ( const dtNavMesh         &mesh,
 
             if ( ( poly->flags & poly_flags ) != 0 )
             {
-               DebugId debug_id = DrawNavMeshPoly ( mesh, base | static_cast <dtPolyRef> ( poly_index ), colour ) ;
+               const dtPolyRef  ref   = ( base | static_cast <dtPolyRef> ( poly_index ) ) ;
+               const dtMeshTile *tile = nullptr ;
+               const dtPoly     *poly = nullptr ;
 
-               if ( debug_id != INVALID_DEBUG_ID )
+               if ( ! dtStatusFailed ( mesh.getTileAndPolyByRef ( ref, &tile, &poly ) ) )
                {
-                  poly_debug_id_list.push_back ( debug_id ) ;
+                  DebugId debug_id = DrawNavMeshPoly ( *tile, *poly, colour ) ;
+
+                  if ( debug_id != INVALID_DEBUG_ID )
+                  {
+                     poly_debug_id_list.push_back ( debug_id ) ;
+                  }
                }
             }
          }
@@ -514,23 +560,17 @@ DrawPolysWithFlags ( const dtNavMesh         &mesh,
 
 DebugId
 NavMeshDebug::
-DrawNavMeshPoly ( const dtNavMesh         &mesh,
-                  dtPolyRef               ref,
+DrawNavMeshPoly ( const dtMeshTile        &tile,
+                  const dtPoly            &poly,
                   const Ogre::ColourValue &colour )
 {
-   const dtMeshTile *tile = nullptr ;
-   const dtPoly     *poly = nullptr ;
+   const unsigned int poly_index = static_cast <unsigned int> ( &poly - tile.polys ) ;
 
-   if ( ! dtStatusFailed ( mesh.getTileAndPolyByRef ( ref, &tile, &poly ) ) )
+   if ( poly.getType () != DT_POLYTYPE_OFFMESH_CONNECTION )
    {
-      const unsigned int poly_index = static_cast <unsigned int> ( poly - tile->polys ) ;
+      auto triangle_list = GenerateTriangleListFromPoly ( tile, poly, poly_index, colour ) ;
 
-      if ( poly->getType () != DT_POLYTYPE_OFFMESH_CONNECTION )
-      {
-         auto triangle_list = GenerateTriangleListFromPoly ( *tile, *poly, poly_index, colour ) ;
-
-         return CurrentDebugManager.CreateDebugTrianglePoly ( triangle_list, Ogre::ColourValue::Black ) ;
-      }
+      return CurrentDebugManager.CreateDebugTrianglePoly ( triangle_list, Ogre::ColourValue::Black ) ;
    }
 
    return INVALID_DEBUG_ID ;
@@ -538,11 +578,10 @@ DrawNavMeshPoly ( const dtNavMesh         &mesh,
 
 DebugId
 NavMeshDebug::
-DrawTilePolys ( const dtNavMesh      &mesh,
+DrawTilePolys ( const dtPolyRef      base_polyref,
                 const dtNavMeshQuery &query,
                 const dtMeshTile     &tile )
 {
-   dtPolyRef                       base = mesh.getPolyRefBase ( &tile ) ;
    std::vector <DebugPolyTriangle> triangle_list ;
 
    for ( auto poly_index = 0 ; poly_index < tile.header->polyCount ; ++poly_index )
@@ -553,13 +592,13 @@ DrawTilePolys ( const dtNavMesh      &mesh,
       {
          Ogre::ColourValue colour = Ogre::ColourValue::Black ;
 
-         if ( query.isInClosedList ( base | static_cast <dtPolyRef> ( poly_index ) ) )
+         if ( query.isInClosedList ( base_polyref | static_cast <dtPolyRef> ( poly_index ) ) )
          {
             colour = Ogre::ColourValue ( 1.0f, 0.75f, 0, 0.25f ) ;
          }
          else
          {
-            colour = AreaToColour ( poly->getArea () ) ;
+            colour = AreaToColour ( poly->getArea (), poly->flags ) ;
             colour.a = 0.25f ;
          }
 

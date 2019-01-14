@@ -9,12 +9,15 @@
 
 class DebugManager ;
 
-class OgreDetourTileCache ;
+class OgreRecast ;
+class dtNavMeshQuery ;
 
 class NavMeshDebug
 {
 public :
-   NavMeshDebug ( const OgreDetourTileCache &ogre_tile_cache ) ;
+   NavMeshDebug ( const dtTileCache    &tile_cache,
+                  const dtNavMesh      &nav_mesh,
+                  const dtNavMeshQuery &nav_query ) ;
    ~NavMeshDebug () ;
 
    void
@@ -24,8 +27,11 @@ public :
    SetDrawObstacles ( const bool draw_obstacles ) ;
 
    void
-   RedrawTile ( const std::size_t tile_x,
-                const std::size_t tile_z ) ;
+   RedrawTile ( const std::size_t    tile_x,
+                const std::size_t    tile_z ) ;
+
+   void
+   RedrawAllTilesUnderObstacles () ;
 
    void
    AddObstacle ( const dtObstacleRef       &obstacle_ref,
@@ -39,9 +45,9 @@ public :
 
 private :
    void
-   DrawEntireNavMesh ( const dtTileCache          &tile_cache,
-                       const dtNavMesh            &nav_mesh,
-                       const class dtNavMeshQuery &nav_query ) ;
+   DrawEntireNavMesh ( const dtTileCache    &tile_cache,
+                       const dtNavMesh      &nav_mesh,
+                       const dtNavMeshQuery &nav_query ) ;
 
    void
    DrawAllTiles ( const dtNavMesh      &mesh,
@@ -69,7 +75,7 @@ private :
    RemoveInputMesh () ;
 
    void
-   DrawTile ( const dtNavMesh      &mesh,
+   DrawTile ( const dtPolyRef      base_polyref,
               const dtNavMeshQuery &query,
               const dtMeshTile     &tile,
               struct Tile          &debug_tile ) ;
@@ -83,12 +89,12 @@ private :
                         const Ogre::ColourValue &colour ) ;
 
    DebugId
-   DrawNavMeshPoly ( const dtNavMesh         &mesh,
-                     dtPolyRef               ref,
+   DrawNavMeshPoly ( const dtMeshTile        &tile,
+                     const dtPoly            &poly,
                      const Ogre::ColourValue &colour ) ;
 
    DebugId
-   DrawTilePolys ( const dtNavMesh      &mesh,
+   DrawTilePolys ( const dtPolyRef      base_polyref,
                    const dtNavMeshQuery &query,
                    const dtMeshTile     &tile ) ;
 
@@ -117,8 +123,10 @@ private :
                  const Ogre::ColourValue &colour,
                  const float             half_size ) ;
 
-   DebugManager              &CurrentDebugManager ;
-   const OgreDetourTileCache &OgreTileCache ;
+   DebugManager         &CurrentDebugManager ;
+   const dtTileCache    &TileCache ;
+   const dtNavMesh      &NavMesh ;
+   const dtNavMeshQuery &NavQuery ;
 
    std::vector <struct Tile>     TileList ;
    std::vector <struct Obstacle> ObstacleList ;

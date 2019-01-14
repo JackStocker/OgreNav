@@ -36,20 +36,15 @@
 #include "InputGeom.h"
 #include "OgreRecast.h"
 #include <OgreStreamSerialiser.h>
-#include <float.h>
 #include <cstdio>
 
 InputGeom::InputGeom(std::vector<Ogre::Entity*> srcMeshes)
     : mSrcMeshes(srcMeshes),
-      //mTerrainGroup(0),
       nverts(0),
       ntris(0),
       mReferenceNode(0),
       bmin(0),
       bmax(0),
-      //m_offMeshConCount(0),
-      m_volumeCount(0),
-      m_chunkyMesh(0),
       normals(0),
       verts(0),
       tris(0)
@@ -57,36 +52,33 @@ InputGeom::InputGeom(std::vector<Ogre::Entity*> srcMeshes)
     if (srcMeshes.empty())
         return;
 
-
     // Convert Ogre::Entity source meshes to a format that recast understands
 
     //set the reference node
     Ogre::Entity* ent = srcMeshes[0];
     mReferenceNode = ent->getParentSceneNode()->getCreator()->getRootSceneNode();
 
-
     // Set the area where the navigation mesh will be build.
     // Using bounding box of source mesh and specified cell size
     calculateExtents();
 
-
     // Convert ogre geometry (vertices, triangles and normals)
     convertOgreEntities();
 
-
-// TODO You don't need to build this in single navmesh mode
+    // You don't need to build this in single navmesh mode
     buildChunkyTriMesh();
 }
 
 void InputGeom::buildChunkyTriMesh()
 {
-    m_chunkyMesh = new rcChunkyTriMesh;
+    m_chunkyMesh = std::make_unique <rcChunkyTriMesh> () ;
+
     if (!m_chunkyMesh)
     {
         Ogre::LogManager::getSingletonPtr()->logMessage("buildTiledNavigation: Out of memory 'm_chunkyMesh'.");
         return;
     }
-    if (!rcCreateChunkyTriMesh(getVerts(), getTris(), getTriCount(), 256, m_chunkyMesh))
+    if (!rcCreateChunkyTriMesh(getVerts(), getTris(), getTriCount(), 256, m_chunkyMesh.get ()))
     {
         Ogre::LogManager::getSingletonPtr()->logMessage("buildTiledNavigation: Failed to build chunky mesh.");
         return;
@@ -96,9 +88,6 @@ void InputGeom::buildChunkyTriMesh()
 // TODO make sure I don't forget destructing some members
 InputGeom::~InputGeom()
 {
-    if(m_chunkyMesh)
-        delete m_chunkyMesh;
-
     if(verts)
         delete[] verts;
     if(normals)
@@ -506,50 +495,6 @@ void InputGeom::getManualMeshInformation(const Ogre::ManualObject *manual,
 
     //All done.
     return;
-}
-
-int InputGeom::getConvexVolumeId(ConvexVolume *convexHull)
-{
-    for(int i = 0; i < m_volumeCount; i++) {
-        if(m_volumes[i] == convexHull)
-            return i;
-    }
-
-    return -1;
-}
-
-int InputGeom::addConvexVolume(ConvexVolume *vol)
-{
-    // The maximum number of convex volumes that can be added to the navmesh equals the max amount
-    // of volumes that can be added to the inputGeom it is built from.
-    if (m_volumeCount >= InputGeom::MAX_VOLUMES)
-        return -1;
-
-    m_volumes[m_volumeCount] = vol;
-    m_volumeCount++;
-
-    return m_volumeCount-1; // Return index of created volume
-}
-
-bool InputGeom::deleteConvexVolume(int i, ConvexVolume** removedVolume)
-{
-    if(i >= m_volumeCount || i < 0)
-        return false;
-
-
-    *removedVolume = m_volumes[i];
-    m_volumeCount--;
-    m_volumes[i] = m_volumes[m_volumeCount];
-
-    return true;
-}
-
-ConvexVolume* InputGeom::getConvexVolume(int volIndex)
-{
-    if (volIndex < 0 || volIndex > m_volumeCount)
-        return NULL;
-
-   return m_volumes[volIndex];
 }
 
 // ChunkyTriMesh

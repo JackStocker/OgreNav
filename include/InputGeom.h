@@ -183,34 +183,7 @@ public:
       * Chunky tri meshes are only used when building tiled navmeshes, and are not essential,
       * just more optimized.
       **/
-    inline const rcChunkyTriMesh* getChunkyMesh() const { return m_chunkyMesh; }
-
-    /**
-      * Raycast this inputGeometry.
-      **/
-    //bool raycastMesh(float* src, float* dst, float& tmin);
-
-    /**
-      * See OgreDetourTileCache::hitTestObstacle, but here it serves for
-      * finding convexVolumes.
-      **/
-    //int hitTestConvexVolume(const float* sp, const float* sq);
-
-    /**
-      * Retrieve the convex volume obstacle with specified index from this inputGeom.
-      **/
-    ConvexVolume* getConvexVolume(int volIdx);
-
-    /// @name Box Volumes.
-    ///@{
-    int getConvexVolumeCount() const { return m_volumeCount; }
-    const ConvexVolume* const* getConvexVolumes() const { return m_volumes; }
-    int addConvexVolume(ConvexVolume *vol);
-    bool deleteConvexVolume(int i, ConvexVolume** = NULL);
-    // Not implemented
-    void drawConvexVolumes(struct duDebugDraw* dd, bool hilight = false);
-    int getConvexVolumeId(ConvexVolume *convexHull);
-    ///@}
+    inline const rcChunkyTriMesh* getChunkyMesh() const { return m_chunkyMesh.get(); }
 
 private:
     /**
@@ -285,16 +258,7 @@ private:
       * Optimized structures that stores triangles in axis aligned boxes of uniform size
       * (tiles). Allows quick access to a part of the geometry, but requires more memory to store.
       **/
-    rcChunkyTriMesh *m_chunkyMesh;
-
-    /**
-      * Maximum number of convex volume obstacles that can be added to this inputGeom.
-      **/
-    static const int MAX_VOLUMES = 1024;
-
-    /// @name Convex Volumes (temporary) added to this geometry.
-    ConvexVolume* m_volumes[MAX_VOLUMES];
-    int m_volumeCount;
+    std::unique_ptr <rcChunkyTriMesh> m_chunkyMesh;
 
 };
 

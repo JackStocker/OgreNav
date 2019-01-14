@@ -32,239 +32,342 @@
     THE SOFTWARE.
 
 */
-
 #include "OgreRecast.h"
 #include "InputGeom.h"
 #include "DetourTileCacheBuilder.h"
 #include "PlayerFlagQueryFilter.h"
-
-#include <math.h>
+#include "OgreRecastConfigParams.h"
+#include "NavMeshDebug.h"
 
 OgreRecast::
-OgreRecast ( OgreRecastConfigParams configParams )
-    : mFilter(0),
-      m_ctx(0)
+OgreRecast ( const OgreRecastConfigParams &config_params ) :
+   BuildContext ( false )
 {
-   // Init recast stuff in a safe state
-   m_navMesh=NULL;
-   m_navQuery=NULL;
-   m_ctx=NULL ;
-
-   RecastCleanup() ; // TODO ?? don't know if I should do this prior to making any recast stuff, but the demo did.
-
    // Set default size of box around points to look for nav polygons
-   mExtents[0] = 32.0f;
-   mExtents[1] = 32.0f;
-   mExtents[2] = 32.0f;
+   PolySearchBox [ 0 ] = 32.0f ;
+   PolySearchBox [ 1 ] = 32.0f ;
+   PolySearchBox [ 2 ] = 32.0f ;
 
    // Setup the default query filter
-   mFilter = new PlayerFlagQueryFilter () ;
-   mFilter->setIncludeFlags ( POLYFLAGS_ALL ) ;
-   mFilter->setExcludeFlags ( 0 ) ;
-   mFilter->setAreaCost ( POLYAREA_GRASS, 2.0f  ) ;
-   mFilter->setAreaCost ( POLYAREA_WATER, 10.0f ) ;
-   mFilter->setAreaCost ( POLYAREA_ROAD,  1.0f ) ;
-   mFilter->setAreaCost ( POLYAREA_SAND,  4.0f  ) ;
-
-   // Init path store. MaxVertex 0 means empty path slot
-   for(int i = 0; i < MAX_PATHSLOT; i++) {
-       m_PathStore[i].MaxVertex = 0;
-       m_PathStore[i].Target = 0;
-   }
-
+   QueryFilter.setIncludeFlags ( POLYFLAGS_ALL ) ;
+   QueryFilter.setExcludeFlags ( 0 ) ;
+   QueryFilter.setAreaCost ( POLYAREA_GRASS, 2.0f  ) ;
+   QueryFilter.setAreaCost ( POLYAREA_WATER, 10.0f ) ;
+   QueryFilter.setAreaCost ( POLYAREA_ROAD,  1.0f ) ;
+   QueryFilter.setAreaCost ( POLYAREA_SAND,  4.0f  ) ;
+   QueryFilter.setAreaCost ( POLYAREA_GATE,  1.8f  ) ; // Slgihtly less than normal Grass
 
    // Set configuration
-   configure(configParams);
+   ConfigureBuildParameters ( config_params ) ;
 }
 
-
-/**
- * Cleanup recast stuff, not debug manualobjects.
-**/
-void OgreRecast::RecastCleanup()
+void
+OgreRecast::
+Update ( const float delta_time,
+         const bool  until_up_to_date )
 {
-   dtFreeNavMesh(m_navMesh);
-   m_navMesh = 0;
-
-   dtFreeNavMeshQuery(m_navQuery);
-   m_navQuery = 0 ;
-
-   if(m_ctx){
-       delete m_ctx;
-       m_ctx = 0;
-   }
+   TileCache->HandleUpdate ( delta_time, until_up_to_date ) ;
 }
 
-
-void OgreRecast::configure(OgreRecastConfigParams params)
+bool
+OgreRecast::
+Generate ( const unsigned int         max_num_obstacles,
+           const int                  tile_size,
+           std::vector<Ogre::Entity*> source_meshes,
+           const TerrainAreaVector    &area_list )
 {
-    // NOTE: this is one of the most important parts to get it right!!
-    // Perhaps the most important part of the above is setting the agent size with m_agentHeight and m_agentRadius,
-    // and the voxel cell size used, m_cellSize and m_cellHeight. In my project 1 units is a little less than 1 meter,
-    // so I've set the agent to 2.5 units high, and the cell sizes to sub-meter size.
-    // This is about the same as in the original cell sizes in the Recast/Detour demo.
+   TileCache = std::make_unique <OgreDetourTileCache> ( *this, BuildContext, RecastConfig, NavQuery, max_num_obstacles, tile_size ) ;
 
-    // Smaller cellsizes are the most accurate at finding all the places we could go, but are also slow to generate.
-    // Might be suitable for pre-generated meshes. Though it also produces a lot more polygons.
-
-    if(m_ctx) {
-        delete m_ctx;
-        m_ctx = 0;
-    }
-    m_ctx=new rcContext(true);
-
-    // Init cfg object
-    memset(&m_cfg, 0, sizeof(m_cfg));
-    m_cfg.cs = params.getCellSize();
-    m_cfg.ch = params.getCellHeight();
-    m_cfg.walkableSlopeAngle = params.getAgentMaxSlope();
-    m_cfg.walkableHeight = params._getWalkableheight();
-    m_cfg.walkableClimb = params._getWalkableClimb();
-    m_cfg.walkableRadius = params._getWalkableRadius();
-    m_cfg.maxEdgeLen = params._getMaxEdgeLen();
-    m_cfg.maxSimplificationError = params.getEdgeMaxError();
-    m_cfg.minRegionArea = params._getMinRegionArea();
-    m_cfg.mergeRegionArea = params._getMergeRegionArea();
-    m_cfg.maxVertsPerPoly = params.getVertsPerPoly();
-    m_cfg.detailSampleDist = (float) params._getDetailSampleDist();
-    m_cfg.detailSampleMaxError = (float) params._getDetailSampleMaxError();
+   return TileCache->TileCacheBuild ( std::move ( source_meshes ), area_list ) ;
 }
 
-/**
- * Now for the pathfinding code.
- * This takes a start point and an end point and, if possible, generates a list of lines in a path. It might fail if the start or end points aren't near any navmesh polygons, or if the path is too long, or it can't make a path, or various other reasons. So far I've not had problems though.
- *
- * nTarget: The index number for the slot in which the found path is to be stored
- * nPathSlot: Number identifying the target the path leads to
- *
- * Return codes:
- *  0   found path
- *  -1  Couldn't find polygon nearest to start point
- *  -2  Couldn't find polygon nearest to end point
- *  -3  Couldn't create a path
- *  -4  Couldn't find a path
- *  -5  Couldn't create a straight path
- *  -6  Couldn't find a straight path
-**/
-int OgreRecast::FindPath(float* pStartPos, float* pEndPos, int nPathSlot, int nTarget, const unsigned int include_flags, const unsigned int exclude_flags )
+bool
+OgreRecast::
+Load ( const Ogre::String         &filename,
+       const unsigned int         max_num_obstacles,
+       const int                  tile_size,
+       std::vector<Ogre::Entity*> source_meshes )
 {
-   dtStatus status ;
-   dtPolyRef StartPoly ;
-   float StartNearest[3] ;
-   dtPolyRef EndPoly ;
-   float EndNearest[3] ;
-   dtPolyRef PolyPath[MAX_PATHPOLY] ;
-   int nPathCount=0 ;
-   float StraightPath[MAX_PATHVERT*3] ;
-   int nVertCount=0 ;
+   TileCache = std::make_unique <OgreDetourTileCache> ( *this, BuildContext, RecastConfig, NavQuery, max_num_obstacles, tile_size ) ;
 
-   mFilter->setIncludeFlags ( include_flags ) ;
-   mFilter->setExcludeFlags ( exclude_flags ) ;
+   return TileCache->LoadAll ( filename, std::move ( source_meshes ) ) ;
+}
 
-   // find the start polygon
-   status=m_navQuery->findNearestPoly(pStartPos, mExtents, mFilter, &StartPoly, StartNearest) ;
-   if((status&DT_FAILURE) || (status&DT_STATUS_DETAIL_MASK)) return -1 ; // couldn't find a polygon
+bool
+OgreRecast::
+Save ( const Ogre::String &filename )
+{
+   assert ( TileCache ) ;
 
-   // find the end polygon
-   status=m_navQuery->findNearestPoly(pEndPos, mExtents, mFilter, &EndPoly, EndNearest) ;
-   if((status&DT_FAILURE) || (status&DT_STATUS_DETAIL_MASK)) return -2 ; // couldn't find a polygon
-
-   status=m_navQuery->findPath(StartPoly, EndPoly, StartNearest, EndNearest, mFilter, PolyPath, &nPathCount, MAX_PATHPOLY) ;
-
-   if ( status & DT_PARTIAL_RESULT &&
-        nPathCount > 0 )
+   if ( TileCache )
    {
-      auto new_start = PolyPath [ nPathCount -1 ] ;
-
-      status=m_navQuery->findPath(new_start, EndPoly, StartNearest, EndNearest, mFilter, PolyPath, &nPathCount, MAX_PATHPOLY) ;
+      return TileCache->SaveAll ( filename ) ;
    }
 
-   if((status&DT_FAILURE) || (status&DT_STATUS_DETAIL_MASK)) return -3 ; // couldn't create a path
-   if(nPathCount==0) return -4 ; // couldn't find a path
+   return false ;
+}
 
-   //status=m_navQuery->findStraightPath(StartNearest, EndNearest, PolyPath, nPathCount, StraightPath, NULL, NULL, &nVertCount, MAX_PATHVERT, DT_STRAIGHTPATH_ALL_CROSSINGS) ;
-   status=m_navQuery->findStraightPath(StartNearest, EndNearest, PolyPath, nPathCount, StraightPath, NULL, NULL, &nVertCount, MAX_PATHVERT, DT_STRAIGHTPATH_AREA_CROSSINGS) ;
-   if((status&DT_FAILURE) || (status&DT_STATUS_DETAIL_MASK)) return -5 ; // couldn't create a path
-   if(nVertCount==0) return -6 ; // couldn't find a path
+std::unique_ptr <NavMeshDebug>
+OgreRecast::
+CreateNavMeshDebugger ()
+{
+   assert ( TileCache ) ;
 
-   // At this point we have our path.  Copy it to the path store
-   int nIndex=0 ;
-   for(int nVert=0 ; nVert<nVertCount ; nVert++)
+   if ( TileCache )
    {
-      m_PathStore[nPathSlot].PosX[nVert]=StraightPath[nIndex++] ;
-      m_PathStore[nPathSlot].PosY[nVert]=StraightPath[nIndex++] ;
-      m_PathStore[nPathSlot].PosZ[nVert]=StraightPath[nIndex++] ;
-
-      //sprintf(m_chBug, "Path Vert %i, %f %f %f", nVert, m_PathStore[nPathSlot].PosX[nVert], m_PathStore[nPathSlot].PosY[nVert], m_PathStore[nPathSlot].PosZ[nVert]) ;
-      //m_pLog->logMessage(m_chBug);
+      return std::move ( std::unique_ptr <NavMeshDebug> ( TileCache->CreateDebugger () ) ) ;
    }
-   m_PathStore[nPathSlot].MaxVertex=nVertCount ;
-   m_PathStore[nPathSlot].Target=nTarget ;
 
-   return nVertCount ;
-
+   return std::unique_ptr <NavMeshDebug> () ;
 }
 
-int OgreRecast::FindPath(Ogre::Vector3 startPos, Ogre::Vector3 endPos, int nPathSlot, int nTarget, const unsigned int include_flags, const unsigned int exclude_flags)
+dtObstacleRef
+OgreRecast::
+AddObstacle ( const Ogre::Vector3  &min,
+              const Ogre::Vector3  &max,
+              const unsigned char  area_id,
+              const unsigned short flags )
 {
-    float start[3];
-    float end[3];
-    OgreVect3ToFloatA(startPos, start);
-    OgreVect3ToFloatA(endPos, end);
-
-    return FindPath(start,end,nPathSlot,nTarget, include_flags, exclude_flags);
+   return TileCache->AddObstacle ( min, max, area_id, flags ) ;
 }
 
-std::vector<Ogre::Vector3> OgreRecast::getPath(int pathSlot)
+dtObstacleRef
+OgreRecast::
+AddObstacle ( const Ogre::Vector3  &centre,
+              const float          width,
+              const float          depth,
+              const float          height,
+              const float          y_rotation, // radians
+              const unsigned char  area_id,
+              const unsigned short flags )
 {
-    std::vector<Ogre::Vector3> result;
-    if(pathSlot < 0 || pathSlot >= MAX_PATHSLOT || m_PathStore[pathSlot].MaxVertex <= 0)
-        return result;
-
-    PATHDATA *path = &(m_PathStore[pathSlot]);
-    result.reserve(path->MaxVertex);
-    for(int i = 0; i < path->MaxVertex; i++) {
-        result.push_back(Ogre::Vector3(path->PosX[i], path->PosY[i], path->PosZ[i]));
-    }
-
-    return result;
+   return TileCache->AddObstacle ( centre, width, depth, height, y_rotation, area_id, flags ) ;
 }
 
-/**
-  * Helpers
-  **/
-void OgreRecast::OgreVect3ToFloatA(const Ogre::Vector3 vect, float* result)
+const dtTileCacheObstacle *
+OgreRecast::
+GetObstacleByRef ( dtObstacleRef ref )
 {
-    result[0] = vect[0];
-    result[1] = vect[1];
-    result[2] = vect[2];
+   return TileCache->GetObstacleByRef ( ref ) ;
 }
 
-void OgreRecast::FloatAToOgreVect3(const float* vect, Ogre::Vector3 &result)
+bool
+OgreRecast::
+RemoveObstacle ( dtObstacleRef ref )
 {
-    result.x = vect[0];
-    result.y = vect[1];
-    result.z = vect[2];
+   return TileCache->RemoveObstacle ( ref ) ;
 }
 
-bool OgreRecast::findNearestPointOnNavmesh(Ogre::Vector3 position, const unsigned int include_flags, const unsigned int exclude_flags, Ogre::Vector3 &resultPt)
+int
+OgreRecast::
+AddConvexVolume ( ConvexVolume *vol )
 {
-    dtPolyRef navmeshPoly;
-    return findNearestPolyOnNavmesh(position, include_flags, exclude_flags, resultPt, navmeshPoly);
+   return TileCache->AddConvexVolume ( vol ) ;
 }
 
-bool OgreRecast::findNearestPolyOnNavmesh(Ogre::Vector3 position, const unsigned int include_flags, const unsigned int exclude_flags, Ogre::Vector3 &resultPt, dtPolyRef &resultPoly)
+bool
+OgreRecast::
+DeleteConvexVolume ( int volume_index )
 {
-   mFilter->setIncludeFlags ( include_flags ) ;
-   mFilter->setExcludeFlags ( exclude_flags ) ;
+   return TileCache->DeleteConvexVolume ( volume_index ) ;
+}
 
-    float pt[3];
-    OgreVect3ToFloatA(position, pt);
-    float rPt[3];
-    dtStatus status=m_navQuery->findNearestPoly(pt, mExtents, mFilter, &resultPoly, rPt);
-    if((status&DT_FAILURE) || (status&DT_STATUS_DETAIL_MASK))
-        return false; // couldn't find a polygon
+FindPathReturnCode
+OgreRecast::
+FindPath ( float                      *start_pos,
+           float                      *end_pos,
+           const unsigned int         include_flags,
+           const unsigned int         exclude_flags,
+           std::vector<Ogre::Vector3> &path )
+{
+   dtStatus  status ;
+   dtPolyRef start_poly ;
+   dtPolyRef end_poly ;
+   int       path_poly_count = 0 ;
+   int       vertex_count    = 0 ;
+   float     start_nearest_point [ 3 ] ;
+   float     end_nearest_point   [ 3 ] ;
+   dtPolyRef poly_path     [ MAX_PATHPOLY ] ;
+   float     straight_path [ MAX_PATHVERT * 3 ] ;
 
-    FloatAToOgreVect3(rPt, resultPt);
-    return true;
+   QueryFilter.setIncludeFlags ( include_flags ) ;
+   QueryFilter.setExcludeFlags ( exclude_flags ) ;
+
+   // Find the start polygon
+   status = NavQuery.findNearestPoly ( start_pos, PolySearchBox, &QueryFilter, &start_poly, start_nearest_point ) ;
+
+   if ( ( status & DT_FAILURE ) ||
+        ( status & DT_STATUS_DETAIL_MASK ) )
+   {
+      return FindPathReturnCode::CANNOT_FIND_START ; // couldn't find a polygon
+   }
+
+   // Find the end polygon
+   status = NavQuery.findNearestPoly ( end_pos, PolySearchBox, &QueryFilter, &end_poly, end_nearest_point ) ;
+
+   if ( ( status & DT_FAILURE ) ||
+        ( status & DT_STATUS_DETAIL_MASK ) )
+   {
+      return FindPathReturnCode::CANNOT_FIND_END ; // couldn't find a polygon
+   }
+
+   status = NavQuery.findPath ( start_poly, end_poly, start_nearest_point, end_nearest_point, &QueryFilter, poly_path, &path_poly_count, MAX_PATHPOLY ) ;
+
+   if ( ( status & DT_PARTIAL_RESULT ) &&
+        ( path_poly_count > 0 ) )
+   {
+      auto new_start = poly_path [ path_poly_count -1 ] ;
+
+      status = NavQuery.findPath ( new_start, end_poly, start_nearest_point, end_nearest_point, &QueryFilter, poly_path, &path_poly_count, MAX_PATHPOLY ) ;
+   }
+
+   if ( ( status & DT_FAILURE ) ||
+        ( status & DT_STATUS_DETAIL_MASK ) )
+   {
+      return FindPathReturnCode::CANNOT_CREATE_PATH ; // couldn't create a path
+   }
+
+   if ( path_poly_count == 0 )
+   {
+      return FindPathReturnCode::CANNOT_FIND_PATH ; // couldn't find a path
+   }
+
+   status = NavQuery.findStraightPath ( start_nearest_point, end_nearest_point, poly_path, path_poly_count, straight_path, nullptr, nullptr, &vertex_count, MAX_PATHVERT, DT_STRAIGHTPATH_AREA_CROSSINGS ) ;
+
+   if ( ( status & DT_FAILURE ) ||
+        ( status & DT_STATUS_DETAIL_MASK ) )
+   {
+      return FindPathReturnCode::CANNOT_CREATE_STRAIGHT_PATH ; // couldn't create a path
+   }
+
+   if ( vertex_count == 0 )
+   {
+      return FindPathReturnCode::CANNOT_FIND_STRAIGHT_PATH ; // couldn't find a path
+   }
+   else
+   {
+      // At this point we have our path
+      std::size_t path_poly_index = 0U ;
+
+      for ( auto vertex_index = 0 ; vertex_index < vertex_count ; ++vertex_index )
+      {
+         path.push_back ( Ogre::Vector3 ( straight_path [ path_poly_index + 0 ],
+                                          straight_path [ path_poly_index + 1 ],
+                                          straight_path [ path_poly_index + 2 ] ) ) ;
+
+         path_poly_index += 3 ;
+      }
+
+      return FindPathReturnCode::PATH_FOUND ;
+   }
+}
+
+FindPathReturnCode
+OgreRecast::
+FindPath ( const Ogre::Vector3        &start_pos,
+           const Ogre::Vector3        &end_pos,
+           const unsigned int         include_flags,
+           const unsigned int         exclude_flags,
+           std::vector<Ogre::Vector3> &path )
+{
+   float start [ 3 ] ;
+   float end   [ 3 ] ;
+
+   OgreVect3ToFloatA ( start_pos, start ) ;
+   OgreVect3ToFloatA ( end_pos,   end ) ;
+
+   return FindPath ( start, end, include_flags, exclude_flags, path ) ;
+}
+
+void
+OgreRecast::
+OgreVect3ToFloatA ( const Ogre::Vector3 &vect,
+                    float               *result )
+{
+   result [ 0 ] = vect.x ;
+   result [ 1 ] = vect.y ;
+   result [ 2 ] = vect.z ;
+}
+
+void
+OgreRecast::
+FloatAToOgreVect3 ( const float   *vect,
+                    Ogre::Vector3 &result )
+{
+   result.x = vect [ 0 ] ;
+   result.y = vect [ 1 ] ;
+   result.z = vect [ 2 ] ;
+}
+
+bool
+OgreRecast::
+FindNearestPointOnNavmesh ( const Ogre::Vector3 &position,
+                            const unsigned int  include_flags,
+                            const unsigned int  exclude_flags,
+                            Ogre::Vector3       &result_point )
+{
+   dtPolyRef navmeshPoly ;
+   return FindNearestPolyOnNavmesh ( position, include_flags, exclude_flags, result_point, navmeshPoly ) ;
+}
+
+bool
+OgreRecast::
+FindNearestPolyOnNavmesh ( const Ogre::Vector3 &position,
+                           const unsigned int  include_flags,
+                           const unsigned int  exclude_flags,
+                           Ogre::Vector3       &result_point,
+                           dtPolyRef           &result_poly )
+{
+   QueryFilter.setIncludeFlags ( include_flags ) ;
+   QueryFilter.setExcludeFlags ( exclude_flags ) ;
+
+   float point [ 3 ] ;
+   float found_point [ 3 ] ;
+
+   OgreVect3ToFloatA ( position, point ) ;
+
+   dtStatus status = NavQuery.findNearestPoly ( point, PolySearchBox, &QueryFilter, &result_poly, found_point ) ;
+
+   if ( ( status & DT_FAILURE ) ||
+        ( status & DT_STATUS_DETAIL_MASK ) )
+   {
+      return false ; // couldn't find a polygon
+   }
+   else
+   {
+      FloatAToOgreVect3 ( found_point, result_point ) ;
+
+      return true ;
+   }
+}
+
+void
+OgreRecast::
+ConfigureBuildParameters ( const OgreRecastConfigParams &config_params )
+{
+   // NOTE: this is one of the most important parts to get it right!!
+   // Perhaps the most important part of the above is setting the agent size with m_agentHeight and m_agentRadius,
+   // and the voxel cell size used, m_cellSize and m_cellHeight. In my project 1 units is a little less than 1 meter,
+   // so I've set the agent to 2.5 units high, and the cell sizes to sub-meter size.
+   // This is about the same as in the original cell sizes in the Recast/Detour demo.
+
+   // Smaller cellsizes are the most accurate at finding all the places we could go, but are also slow to generate.
+   // Might be suitable for pre-generated meshes. Though it also produces a lot more polygons.
+
+   // Init cfg object
+   memset ( &RecastConfig, 0, sizeof ( RecastConfig ) ) ;
+
+   RecastConfig.cs                     = config_params.getCellSize () ;
+   RecastConfig.ch                     = config_params.getCellHeight () ;
+   RecastConfig.walkableSlopeAngle     = config_params.getAgentMaxSlope () ;
+   RecastConfig.walkableHeight         = config_params._getWalkableheight () ;
+   RecastConfig.walkableClimb          = config_params._getWalkableClimb () ;
+   RecastConfig.walkableRadius         = config_params._getWalkableRadius () ;
+   RecastConfig.maxEdgeLen             = config_params._getMaxEdgeLen () ;
+   RecastConfig.maxSimplificationError = config_params.getEdgeMaxError () ;
+   RecastConfig.minRegionArea          = config_params._getMinRegionArea () ;
+   RecastConfig.mergeRegionArea        = config_params._getMergeRegionArea () ;
+   RecastConfig.maxVertsPerPoly        = config_params.getVertsPerPoly () ;
+   RecastConfig.detailSampleDist       = static_cast <float> ( config_params._getDetailSampleDist () ) ;
+   RecastConfig.detailSampleMaxError   = static_cast <float> ( config_params._getDetailSampleMaxError () ) ;
 }

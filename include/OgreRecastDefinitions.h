@@ -49,20 +49,8 @@
 #include "DetourNavMeshBuilder.h"
 #include "DetourNavMeshQuery.h"
 
-#define MAX_PATHSLOT      128 // how many paths we can store
 #define MAX_PATHPOLY      512 // max number of polygons in a path
 #define MAX_PATHVERT      1024 // most verts in a path
-
-// structure for storing output straight line paths
-typedef struct
-{
-   float PosX[MAX_PATHVERT] ;
-   float PosY[MAX_PATHVERT] ;
-   float PosZ[MAX_PATHVERT] ;
-   int MaxVertex ;
-   int Target ;
-}
-PATHDATA ;
 
 enum PolyAreas : unsigned short // Each area can only have one type
 {
@@ -81,8 +69,6 @@ enum PolyFlags : unsigned short // Each poly can have multiple flags in a mask w
    POLYFLAGS_WALK        = 0x0001, // Any land poly area
    POLYFLAGS_FLOAT       = 0x0002, // Any water poly area
    POLYFLAGS_MOVE_MASK   = 0x000F,
-
-   // TODO: This might mean that a player fails the TYPE check but passes the PLAYER check and so the flag include is passed
 
    // Player restrictions
    POLYFLAGS_PLAYER_1    = 0x0010,
