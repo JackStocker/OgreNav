@@ -43,6 +43,7 @@
 #include "OgreRecastDefinitions.h"
 
 class OgreRecast ;
+class NavMeshDebug ;
 
 // Implementation of the meshProcess callback that detourTileCache
 // does after building a navmesh. It allows you to do some extra
@@ -58,40 +59,10 @@ struct MeshProcess : public dtTileCacheMeshProcess
    // Allows you to do some additional post-processing on the navmesh,
    // such as adding off-mesh connections or marking poly areas with
    // certain flags.
-   virtual void
+   void
    process ( dtNavMeshCreateParams *params,
              unsigned char         *poly_areas,
-             unsigned short        *poly_flags )
-    {
-        // Update poly flags from areas.
-        for ( auto poly_index = 0 ; poly_index < params->polyCount ; ++poly_index )
-        {
-            if ( poly_areas [ poly_index ] == DT_TILECACHE_WALKABLE_AREA )
-            {
-                poly_areas [ poly_index ] = POLYAREA_GRASS ;
-            }
-
-            if ( ( poly_areas [ poly_index ] == POLYAREA_GRASS ) ||
-                 ( poly_areas [ poly_index ] == POLYAREA_SAND ) ||
-                 ( poly_areas [ poly_index ] == POLYAREA_ROAD ) )
-            {
-                poly_flags [ poly_index ] |= POLYFLAGS_WALK ;
-            }
-            else if ( poly_areas [ poly_index ] == POLYAREA_WATER )
-            {
-                poly_flags [ poly_index ] |= POLYFLAGS_FLOAT ;
-            }
-            else if ( poly_areas [ poly_index ] == POLYAREA_GATE )
-            {
-               //std::cout <<  "Gate flags before: " << poly_flags [ poly_index ] << " after: " << ( poly_flags [ poly_index ] | POLYFLAGS_WALK | POLYFLAGS_ALL_PLAYERS ) << std::endl ;
-
-               poly_flags [ poly_index ] |= POLYFLAGS_WALK ;
-
-               // All polygons by default allow all players
-               poly_flags [ poly_index ] |= POLYFLAGS_ALL_PLAYERS ;
-            }
-        }
-    }
+             unsigned short        *poly_flags ) override ;
 } ;
 
 // FastLZ implementation of detour tile cache tile compressor.
@@ -105,29 +76,29 @@ struct MeshProcess : public dtTileCacheMeshProcess
 // to them, without the need for a full rebuild.
 struct FastLZCompressor : public dtTileCacheCompressor
 {
-   virtual int
-   maxCompressedSize ( const int buffer_size )
+   int
+   maxCompressedSize ( const int buffer_size ) override
    {
       return static_cast <int> ( buffer_size * 1.05f ) ;
    }
 
-   virtual dtStatus
+   dtStatus
    compress ( const unsigned char *buffer,
               const int           buffer_size,
               unsigned char       *compressed,
               const int           /*max_compressed_size*/,
-              int                 *compressed_size )
+              int                 *compressed_size ) override
    {
       *compressed_size = fastlz_compress ( static_cast <const void * const> ( buffer ), buffer_size, compressed ) ;
       return DT_SUCCESS ;
    }
 
-   virtual dtStatus
+   dtStatus
    decompress ( const unsigned char *compressed,
                 const int           compressed_size,
                 unsigned char       *buffer,
                 const int           max_buffer_size,
-                int                 *buffer_size )
+                int                 *buffer_size ) override
    {
           *buffer_size = fastlz_decompress ( compressed, compressed_size, buffer, max_buffer_size ) ;
           return ( ( *buffer_size < 0 ) ? DT_FAILURE : DT_SUCCESS ) ;
@@ -207,7 +178,15 @@ struct LinearAllocator : public dtTileCacheAlloc
 // Maximum layers (floor levels) that 2D navmeshes can have in the tilecache.
 // This determines the domain size of the tilecache pages, as their dimensions
 // are width*height*layers.
-static const int MAX_LAYERS = 1 ;
+
+// Max number of layers a tile can have
+
+// We only ever expect to have a single layer of vertices for the navmesh. This means that the mesh given to generate it must not have any verticies on-top of any others (such as water), otherwise the tiles on-top will not be built.
+// But we actually need to have this as two so that tiles with multiple levels in it build correctly. If there is a high and low ground in the same tile, sometimes only one part builds correctly.
+// If this is changed, also change OgreDetourTileCache::MAX_LAYERS
+static const int EXPECTED_LAYERS_PER_TILE = 2 ;
+
+static const int MAX_LAYERS = 2 ;
 
 // Struct that stores the actual tile data in binary form.
 struct TileCacheData
@@ -277,17 +256,6 @@ struct BuildContext
    struct dtTileCacheAlloc* alloc;
 } ;
 
-//
-struct TerrainArea // Only square for the moment
-{
-   Ogre::Vector3 Centre ;
-   float         Width ;
-   float         Depth ;
-   unsigned int  AreaId ; // Area identifier from OgreRecastDefinitions.h::PolyAreas
-} ;
-
-using TerrainAreaVector = std::vector <TerrainArea> ;
-
 // DetourTileCache manages a large grid of individual navmeshes stored in pages to
 // allow managing a navmesh for a very large map. Navmesh pages can be requested
 // when needed or swapped out when they are no longer needed.
@@ -311,11 +279,18 @@ public :
                          rcConfig           &config,
                          dtNavMeshQuery     &nav_query,
                          const unsigned int max_num_obstacles,
-                         const int          tile_size ) ;
+                         const int          tile_size,
+                         const bool         keep_heightfield ) ;
    ~OgreDetourTileCache () ;
 
-   class NavMeshDebug *
+   std::unique_ptr <NavMeshDebug>
    CreateDebugger () ;
+
+   const InputGeom*
+   GetInputGeometry () const ;
+
+   const std::vector <rcHeightfield*>
+   GetHeightField () const ;
 
    // Build all tiles of the tilecache and construct a recast navmesh from the
    // specified entities. These entities need to be already added to the scene so that
@@ -332,15 +307,20 @@ public :
    // Will issue a configure() call so the entities specified will determine the world bounds
    // of the tilecache.
    bool
-   TileCacheBuild ( std::vector<Ogre::Entity*> srcMeshes,
+   TileCacheBuild ( std::vector<Ogre::ManualObject*> srcMeshes,
                     const TerrainAreaVector    &area_list ) ;
 
    bool
    SaveAll ( const Ogre::String &filename ) ;
 
    bool
-   LoadAll ( const Ogre::String         &filename,
-             std::vector<Ogre::Entity*> srcMeshes ) ;
+   LoadAll ( const Ogre::String &filename ) ;
+
+   std::vector <std::uint8_t>
+   ToBytes () ;
+
+   bool
+   FromBytes ( const std::vector <std::uint8_t> &bytes ) ;
 
    // Update (tick) the tilecache.
    // You must call this method in your render loop continuously to dynamically
@@ -384,7 +364,7 @@ public :
    RemoveObstacle ( dtObstacleRef obstacleRef ) ;
 
    int
-   AddConvexVolume ( ConvexVolume *vol ) ;
+   AddConvexVolume ( std::unique_ptr <ConvexVolume> vol ) ;
 
    bool
    DeleteConvexVolume ( int i ) ;
@@ -436,6 +416,9 @@ private :
    dtTileCacheParams  m_tcparams ; // DetourTileCache configuration parameters.
    rcContext          &m_ctx ; // Context that stores temporary working variables when navmesh building.
 
+   const bool         m_keep_heightfield = false ;
+   std::vector <rcHeightfield*> m_solid ;
+
    // Configuration parameters.
    int          m_maxTiles ;
    int          m_maxPolysPerTile ;
@@ -445,12 +428,8 @@ private :
    int          m_tw ; // Size of the tile grid (x dimension)
    int          m_th ; // Size of the tile grid (y dimension)
 
-   // Maximum number of convex volume obstacles that can be added to this inputGeom.
-   static const int MAX_VOLUMES = 1024 ;
-
    // Convex Volumes (temporary) added to this geometry.
-   ConvexVolume *m_volumes [ MAX_VOLUMES ] ;
-   int          m_volumeCount ;
+   std::vector <std::unique_ptr<ConvexVolume>> m_volumes ;
 
    struct TileCacheSetHeader
    {

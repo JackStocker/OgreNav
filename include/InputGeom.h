@@ -37,8 +37,8 @@
 #define RECASTINPUTGEOM_H
 
 #include <Ogre.h>
-#include <OgreTerrain.h>
-#include <OgreTerrainGroup.h>
+//#include <OgreTerrain.h>
+//#include <OgreTerrainGroup.h>
 #include "ConvexVolume.h"
 
 
@@ -104,7 +104,7 @@ public:
       * Vertices and faces of the specified source entities are stored in this inputGeom, individual entity
       * grouping and origin points are lost.
       **/
-    InputGeom(std::vector<Ogre::Entity*> srcMeshes);
+    InputGeom(std::vector<Ogre::ManualObject*> srcMeshes);
     ~InputGeom();
 
     /**
@@ -157,26 +157,26 @@ public:
       *
       * Note that this code assumes sizeof(long) == sizeof(uint32_t), which is not true on AMD64 Linux.
      **/
-    static void getMeshInformation(const Ogre::MeshPtr mesh,
-                            size_t &vertex_count,
-                            Ogre::Vector3* &vertices,
-                            size_t &index_count,
-                            unsigned long* &indices,
-                            const Ogre::Vector3 &position = Ogre::Vector3::ZERO,
-                            const Ogre::Quaternion &orient = Ogre::Quaternion::IDENTITY,
-                            const Ogre::Vector3 &scale = Ogre::Vector3::UNIT_SCALE);
+    static void getMeshInformation(const Ogre::MeshPtr    mesh,
+                                   size_t                 &vertex_count,
+                                   Ogre::Vector3*         &vertices,
+                                   size_t                 &index_count,
+                                   Ogre::uint32*          &indices,
+                                   const Ogre::Vector3 &position = Ogre::Vector3::ZERO,
+                                   const Ogre::Quaternion &orient = Ogre::Quaternion::IDENTITY,
+                                   const Ogre::Vector3 &scale = Ogre::Vector3::UNIT_SCALE);
 
     /**
       * getMeshInformation for manual meshes.
       **/
     static void getManualMeshInformation(const Ogre::ManualObject *manual,
-                            size_t &vertex_count,
-                            Ogre::Vector3* &vertices,
-                            size_t &index_count,
-                            unsigned long* &indices,
-                            const Ogre::Vector3 &position = Ogre::Vector3::ZERO,
-                            const Ogre::Quaternion &orient = Ogre::Quaternion::IDENTITY,
-                            const Ogre::Vector3 &scale = Ogre::Vector3::UNIT_SCALE);
+                                         size_t                   &vertex_count,
+                                         Ogre::Vector3*           &vertices,
+                                         size_t                   &index_count,
+                                         Ogre::uint32*            &indices,
+                                         const Ogre::Vector3      &position = Ogre::Vector3::ZERO,
+                                         const Ogre::Quaternion   &orient = Ogre::Quaternion::IDENTITY,
+                                         const Ogre::Vector3      &scale = Ogre::Vector3::UNIT_SCALE);
 
     /**
       * The chunky tri mesh generated for this inputGeom.
@@ -246,7 +246,7 @@ private:
     /**
       * Ogre entities this inputGeom was constructed from.
       **/
-    std::vector<Ogre::Entity*> mSrcMeshes;
+    std::vector<Ogre::ManualObject*> mSrcMeshes;
 
     /**
       * Reference node to which the absolute coordinates of the verts in this inputGeom was calculated.

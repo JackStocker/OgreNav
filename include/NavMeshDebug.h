@@ -11,11 +11,13 @@ class DebugManager ;
 
 class OgreRecast ;
 class dtNavMeshQuery ;
+struct rcHeightfield ;
 
 class NavMeshDebug
 {
 public :
-   NavMeshDebug ( const dtTileCache    &tile_cache,
+   NavMeshDebug ( const OgreRecast     &recast,
+                  const dtTileCache    &tile_cache,
                   const dtNavMesh      &nav_mesh,
                   const dtNavMeshQuery &nav_query ) ;
    ~NavMeshDebug () ;
@@ -27,8 +29,11 @@ public :
    SetDrawObstacles ( const bool draw_obstacles ) ;
 
    void
-   RedrawTile ( const std::size_t    tile_x,
-                const std::size_t    tile_z ) ;
+   SetDrawGrid ( const bool draw_grid ) ;
+
+   void
+   RedrawTile ( const std::size_t tile_x,
+                const std::size_t tile_z ) ;
 
    void
    RedrawAllTilesUnderObstacles () ;
@@ -61,6 +66,9 @@ private :
 
    void
    DrawInputMesh ( const InputGeom &input_geom ) ;
+
+   void
+   DrawHeightField ( const rcHeightfield &height_field ) ;
 
    void
    RemoveAllTiles () ;
@@ -124,6 +132,7 @@ private :
                  const float             half_size ) ;
 
    DebugManager         &CurrentDebugManager ;
+   const OgreRecast     &Recast ;
    const dtTileCache    &TileCache ;
    const dtNavMesh      &NavMesh ;
    const dtNavMeshQuery &NavQuery ;
@@ -134,4 +143,5 @@ private :
    DebugId                       InputMeshDebugId ;
    bool                          DrawTiles ;
    bool                          DrawObstacles ;
+   bool                          DrawGrid_ ;
 } ;

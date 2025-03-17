@@ -1551,7 +1551,7 @@ static dtStatus removeVertex(dtTileCachePolyMesh& mesh, const unsigned short rem
    }
 
    // Remove vertex.
-   for (int i = (int)rem; i < mesh.nverts; ++i)
+   for (int i = (int)rem; i < mesh.nverts- 1; ++i)
    {
       mesh.verts[i*3+0] = mesh.verts[(i+1)*3+0];
       mesh.verts[i*3+1] = mesh.verts[(i+1)*3+1];
@@ -1996,6 +1996,11 @@ dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const fl
          if (y < miny || y > maxy)
             continue;
          layer.areas[x+z*w] = areaId ;
+
+         if ( areaId == 16 )
+         {
+            //file << "Marking [" << x << "," << z << "," << w << "] (" << x + z * w << ") " << static_cast < int >( areaId ) << "\n";
+         }
       }
    }
 
@@ -2035,6 +2040,11 @@ dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float c
          if (y < miny || y > maxy)
             continue;
          layer.areas[x+z*w] = areaId;
+
+         if ( areaId == 16 )
+         {
+            //file << "Marking [" << x << "," << z << "," << w << "] (" << x+z*w << ") " << static_cast < int >( areaId ) << "\n";
+         }
       }
    }
 
@@ -2089,6 +2099,11 @@ dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float c
          if (y < miny || y > maxy)
             continue;
          layer.areas[x+z*w] = areaId;
+
+         if ( areaId == 16 )
+         {
+            //file << "Marking [" << x << "," << z << "," << w << "] (" << x + z * w << ") " << static_cast < int >( areaId ) << "\n";
+         }
       }
    }
 
@@ -2166,6 +2181,11 @@ dtMarkPolyArea ( dtTileCacheLayer &layer,
          {
             const auto index = x + z * w ;
             layer.areas[index] = area_id ;
+
+            if ( area_id == 16 )
+            {
+               //file << "Marking [" << x << "," << z << "," << w << "] (" << x + z * w << ") " << static_cast <int>(area_id) << "\n";
+            }
          }
       }
    }

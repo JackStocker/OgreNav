@@ -38,6 +38,7 @@
 #include "PlayerFlagQueryFilter.h"
 #include "OgreRecastConfigParams.h"
 #include "NavMeshDebug.h"
+#include "SoftAssert.h"
 
 OgreRecast::
 OgreRecast ( const OgreRecastConfigParams &config_params ) :
@@ -53,12 +54,20 @@ OgreRecast ( const OgreRecastConfigParams &config_params ) :
    QueryFilter.setExcludeFlags ( 0 ) ;
    QueryFilter.setAreaCost ( POLYAREA_GRASS, 2.0f  ) ;
    QueryFilter.setAreaCost ( POLYAREA_WATER, 10.0f ) ;
-   QueryFilter.setAreaCost ( POLYAREA_ROAD,  1.0f ) ;
-   QueryFilter.setAreaCost ( POLYAREA_SAND,  4.0f  ) ;
+
+   // Needs to be roughly relative to the extra speed that is gained by travelling over roads
+   //QueryFilter.setAreaCost ( POLYAREA_ROAD,  1.1f ) ;
+
+   // Reduced further following the increased H_SCALE heuristic cost to try to get units to choose roads more often
+   QueryFilter.setAreaCost ( POLYAREA_ROAD, 0.8f ) ;
+
+   QueryFilter.setAreaCost ( POLYAREA_SAND,  2.0f  ) ;
    QueryFilter.setAreaCost ( POLYAREA_GATE,  1.8f  ) ; // Slgihtly less than normal Grass
 
    // Set configuration
    ConfigureBuildParameters ( config_params ) ;
+
+   KeepInterResults = config_params.getKeepInterResults () ;
 }
 
 void
@@ -71,12 +80,17 @@ Update ( const float delta_time,
 
 bool
 OgreRecast::
-Generate ( const unsigned int         max_num_obstacles,
-           const int                  tile_size,
-           std::vector<Ogre::Entity*> source_meshes,
-           const TerrainAreaVector    &area_list )
+Generate ( const OgreRecastConfigParams &config_params, // Config parameters are re-set as they may be different if an existing navmesh file was loaded.
+           const unsigned int           max_num_obstacles,
+           const int                    tile_size,
+           std::vector<Ogre::ManualObject*>   source_meshes,
+           const TerrainAreaVector      &area_list )
 {
-   TileCache = std::make_unique <OgreDetourTileCache> ( *this, BuildContext, RecastConfig, NavQuery, max_num_obstacles, tile_size ) ;
+   ConfigureBuildParameters ( config_params ) ;
+
+   KeepInterResults = config_params.getKeepInterResults () ;
+
+   TileCache = std::make_unique <OgreDetourTileCache> ( *this, BuildContext, RecastConfig, NavQuery, max_num_obstacles, tile_size, KeepInterResults ) ;
 
    return TileCache->TileCacheBuild ( std::move ( source_meshes ), area_list ) ;
 }
@@ -85,19 +99,18 @@ bool
 OgreRecast::
 Load ( const Ogre::String         &filename,
        const unsigned int         max_num_obstacles,
-       const int                  tile_size,
-       std::vector<Ogre::Entity*> source_meshes )
+       const int                  tile_size )
 {
-   TileCache = std::make_unique <OgreDetourTileCache> ( *this, BuildContext, RecastConfig, NavQuery, max_num_obstacles, tile_size ) ;
+   TileCache = std::make_unique <OgreDetourTileCache> ( *this, BuildContext, RecastConfig, NavQuery, max_num_obstacles, tile_size, KeepInterResults ) ;
 
-   return TileCache->LoadAll ( filename, std::move ( source_meshes ) ) ;
+   return TileCache->LoadAll ( filename ) ;
 }
 
 bool
 OgreRecast::
 Save ( const Ogre::String &filename )
 {
-   assert ( TileCache ) ;
+   SoftAssert ( TileCache ) ;
 
    if ( TileCache )
    {
@@ -107,18 +120,67 @@ Save ( const Ogre::String &filename )
    return false ;
 }
 
+std::vector <std::uint8_t>
+OgreRecast::
+ToBytes ()
+{
+   SoftAssert ( TileCache ) ;
+
+   if ( TileCache )
+   {
+      return TileCache->ToBytes () ;
+   }
+
+   return {} ;
+}
+
+bool
+OgreRecast::
+FromBytes ( const std::vector <std::uint8_t> &bytes,
+            const unsigned int               max_num_obstacles,
+            const int                        tile_size )
+{
+   TileCache = std::make_unique <OgreDetourTileCache> ( *this, BuildContext, RecastConfig, NavQuery, max_num_obstacles, tile_size, KeepInterResults ) ;
+
+   return TileCache->FromBytes ( bytes ) ;
+}
+
 std::unique_ptr <NavMeshDebug>
 OgreRecast::
 CreateNavMeshDebugger ()
 {
-   assert ( TileCache ) ;
+   SoftAssert ( TileCache ) ;
 
    if ( TileCache )
    {
-      return std::move ( std::unique_ptr <NavMeshDebug> ( TileCache->CreateDebugger () ) ) ;
+      return TileCache->CreateDebugger () ;
    }
 
-   return std::unique_ptr <NavMeshDebug> () ;
+   return nullptr ;
+}
+
+const InputGeom*
+OgreRecast::
+GetInputGeometry () const
+{
+   if ( TileCache )
+   {
+      return TileCache->GetInputGeometry () ;
+   }
+
+   return nullptr ;
+}
+
+const std::vector <rcHeightfield*>
+OgreRecast::
+GetHeightField () const
+{
+   if ( TileCache )
+   {
+      return TileCache->GetHeightField () ;
+   }
+
+   return {} ;
 }
 
 dtObstacleRef
@@ -158,20 +220,6 @@ RemoveObstacle ( dtObstacleRef ref )
    return TileCache->RemoveObstacle ( ref ) ;
 }
 
-int
-OgreRecast::
-AddConvexVolume ( ConvexVolume *vol )
-{
-   return TileCache->AddConvexVolume ( vol ) ;
-}
-
-bool
-OgreRecast::
-DeleteConvexVolume ( int volume_index )
-{
-   return TileCache->DeleteConvexVolume ( volume_index ) ;
-}
-
 FindPathReturnCode
 OgreRecast::
 FindPath ( float                      *start_pos,
@@ -180,15 +228,100 @@ FindPath ( float                      *start_pos,
            const unsigned int         exclude_flags,
            std::vector<Ogre::Vector3> &path )
 {
+   int vertex_count = 0 ;
+
+   const auto found_path = FindPath ( start_pos, end_pos, include_flags, exclude_flags, vertex_count ) ;
+
+   if ( found_path == FindPathReturnCode::PATH_FOUND )
+   {
+      // At this point we have our path
+      std::size_t path_poly_index = 0U ;
+
+      path.reserve ( path.size () + vertex_count ) ;
+
+      for ( auto vertex_index = 0 ; vertex_index < vertex_count ; ++vertex_index )
+      {
+         path.push_back ( Ogre::Vector3 ( StraightPath [ path_poly_index + 0 ],
+                                          StraightPath [ path_poly_index + 1 ],
+                                          StraightPath [ path_poly_index + 2 ] ) ) ;
+
+         path_poly_index += 3 ;
+      }
+   }
+
+   return found_path ;
+}
+
+FindPathReturnCode
+OgreRecast::
+FindPath ( const Ogre::Vector3        &start_pos,
+           const Ogre::Vector3        &end_pos,
+           const unsigned int         include_flags,
+           const unsigned int         exclude_flags,
+           std::vector<Ogre::Vector3> &path )
+{
+   float start [ 3 ] ;
+   float end   [ 3 ] ;
+
+   OgreVect3ToFloatA ( start_pos, start ) ;
+   OgreVect3ToFloatA ( end_pos,   end ) ;
+
+   return FindPath ( start, end, include_flags, exclude_flags, path ) ;
+}
+
+FindPathReturnCode
+OgreRecast::
+CanPathTo ( float*             start_pos,
+            float*             end_pos,
+            const unsigned int include_flags,
+            const unsigned int exclude_flags,
+            Ogre::Vector3      &final_node )
+{
+   int vertex_count = 0 ;
+
+   const auto found_path = FindPath ( start_pos, end_pos, include_flags, exclude_flags, vertex_count ) ;
+
+   if ( vertex_count > 0 )
+   {
+      const auto path_poly_index = ( vertex_count - 1 ) * 3 ;
+
+      final_node = { StraightPath [ path_poly_index + 0 ],
+                     StraightPath [ path_poly_index + 1 ],
+                     StraightPath [ path_poly_index + 2 ] } ;
+   }
+
+   return found_path ;
+}
+
+FindPathReturnCode
+OgreRecast::
+CanPathTo ( const Ogre::Vector3 &start_pos,
+            const Ogre::Vector3 &end_pos,
+            const unsigned int  include_flags,
+            const unsigned int  exclude_flags,
+            Ogre::Vector3       &final_node )
+{
+   float start [ 3 ] ;
+   float end   [ 3 ] ;
+
+   OgreVect3ToFloatA ( start_pos, start ) ;
+   OgreVect3ToFloatA ( end_pos,   end ) ;
+
+   return CanPathTo ( start, end, include_flags, exclude_flags, final_node ) ;
+}
+
+FindPathReturnCode
+OgreRecast::
+IsStraightLinePathTo ( float              *start_pos,
+                       float              *end_pos,
+                       const unsigned int include_flags,
+                       const unsigned int exclude_flags )
+{
    dtStatus  status ;
    dtPolyRef start_poly ;
    dtPolyRef end_poly ;
-   int       path_poly_count = 0 ;
-   int       vertex_count    = 0 ;
    float     start_nearest_point [ 3 ] ;
    float     end_nearest_point   [ 3 ] ;
-   dtPolyRef poly_path     [ MAX_PATHPOLY ] ;
-   float     straight_path [ MAX_PATHVERT * 3 ] ;
 
    QueryFilter.setIncludeFlags ( include_flags ) ;
    QueryFilter.setExcludeFlags ( exclude_flags ) ;
@@ -211,64 +344,32 @@ FindPath ( float                      *start_pos,
       return FindPathReturnCode::CANNOT_FIND_END ; // couldn't find a polygon
    }
 
-   status = NavQuery.findPath ( start_poly, end_poly, start_nearest_point, end_nearest_point, &QueryFilter, poly_path, &path_poly_count, MAX_PATHPOLY ) ;
+   const auto MAX_RAYCAST_PATH = 32 ;
 
-   if ( ( status & DT_PARTIAL_RESULT ) &&
-        ( path_poly_count > 0 ) )
+   float     hit = 0.0f ;
+   float     normal [ 3 ] ;
+   dtPolyRef path [ MAX_RAYCAST_PATH ] ;
+   int       path_count = 0 ;
+
+   status = NavQuery.raycast ( start_poly, start_pos, end_pos, &QueryFilter, &hit, normal, path, &path_count, MAX_RAYCAST_PATH ) ;
+
+   if ( ( path_count >= 1 ) &&
+        ( hit > 0.99f ) )
    {
-      auto new_start = poly_path [ path_poly_count -1 ] ;
-
-      status = NavQuery.findPath ( new_start, end_poly, start_nearest_point, end_nearest_point, &QueryFilter, poly_path, &path_poly_count, MAX_PATHPOLY ) ;
-   }
-
-   if ( ( status & DT_FAILURE ) ||
-        ( status & DT_STATUS_DETAIL_MASK ) )
-   {
-      return FindPathReturnCode::CANNOT_CREATE_PATH ; // couldn't create a path
-   }
-
-   if ( path_poly_count == 0 )
-   {
-      return FindPathReturnCode::CANNOT_FIND_PATH ; // couldn't find a path
-   }
-
-   status = NavQuery.findStraightPath ( start_nearest_point, end_nearest_point, poly_path, path_poly_count, straight_path, nullptr, nullptr, &vertex_count, MAX_PATHVERT, DT_STRAIGHTPATH_AREA_CROSSINGS ) ;
-
-   if ( ( status & DT_FAILURE ) ||
-        ( status & DT_STATUS_DETAIL_MASK ) )
-   {
-      return FindPathReturnCode::CANNOT_CREATE_STRAIGHT_PATH ; // couldn't create a path
-   }
-
-   if ( vertex_count == 0 )
-   {
-      return FindPathReturnCode::CANNOT_FIND_STRAIGHT_PATH ; // couldn't find a path
+      return FindPathReturnCode::PATH_FOUND ;
    }
    else
    {
-      // At this point we have our path
-      std::size_t path_poly_index = 0U ;
-
-      for ( auto vertex_index = 0 ; vertex_index < vertex_count ; ++vertex_index )
-      {
-         path.push_back ( Ogre::Vector3 ( straight_path [ path_poly_index + 0 ],
-                                          straight_path [ path_poly_index + 1 ],
-                                          straight_path [ path_poly_index + 2 ] ) ) ;
-
-         path_poly_index += 3 ;
-      }
-
-      return FindPathReturnCode::PATH_FOUND ;
+      return FindPathReturnCode::CANNOT_FIND_PATH ; // couldn't raycast from start to end positions
    }
 }
 
 FindPathReturnCode
 OgreRecast::
-FindPath ( const Ogre::Vector3        &start_pos,
-           const Ogre::Vector3        &end_pos,
-           const unsigned int         include_flags,
-           const unsigned int         exclude_flags,
-           std::vector<Ogre::Vector3> &path )
+IsStraightLinePathTo ( const Ogre::Vector3 &start_pos,
+                       const Ogre::Vector3 &end_pos,
+                       const unsigned int  include_flags,
+                       const unsigned int  exclude_flags )
 {
    float start [ 3 ] ;
    float end   [ 3 ] ;
@@ -276,7 +377,7 @@ FindPath ( const Ogre::Vector3        &start_pos,
    OgreVect3ToFloatA ( start_pos, start ) ;
    OgreVect3ToFloatA ( end_pos,   end ) ;
 
-   return FindPath ( start, end, include_flags, exclude_flags, path ) ;
+   return IsStraightLinePathTo ( start, end, include_flags, exclude_flags ) ;
 }
 
 void
@@ -370,4 +471,94 @@ ConfigureBuildParameters ( const OgreRecastConfigParams &config_params )
    RecastConfig.maxVertsPerPoly        = config_params.getVertsPerPoly () ;
    RecastConfig.detailSampleDist       = static_cast <float> ( config_params._getDetailSampleDist () ) ;
    RecastConfig.detailSampleMaxError   = static_cast <float> ( config_params._getDetailSampleMaxError () ) ;
+}
+
+FindPathReturnCode
+OgreRecast::
+FindPath ( float*             start_pos,
+           float*             end_pos,
+           const unsigned int include_flags,
+           const unsigned int exclude_flags,
+           int                &vertex_count )
+{
+   dtStatus  status ;
+   dtPolyRef start_poly ;
+   dtPolyRef end_poly ;
+   int       path_poly_count = 0 ;
+   float     start_nearest_point [ 3 ] ;
+   float     end_nearest_point   [ 3 ] ;
+
+   vertex_count = 0 ;
+
+   QueryFilter.setIncludeFlags ( include_flags ) ;
+   QueryFilter.setExcludeFlags ( exclude_flags ) ;
+
+   // Find the start polygon
+   status = NavQuery.findNearestPoly ( start_pos, PolySearchBox, &QueryFilter, &start_poly, start_nearest_point ) ;
+
+   if ( ( status & DT_FAILURE ) ||
+        ( status & DT_STATUS_DETAIL_MASK ) )
+   {
+      return FindPathReturnCode::CANNOT_FIND_START ; // couldn't find a polygon
+   }
+
+   // Find the end polygon
+   status = NavQuery.findNearestPoly ( end_pos, PolySearchBox, &QueryFilter, &end_poly, end_nearest_point ) ;
+
+   if ( ( status & DT_FAILURE ) ||
+        ( status & DT_STATUS_DETAIL_MASK ) )
+   {
+      return FindPathReturnCode::CANNOT_FIND_END ; // couldn't find a polygon
+   }
+
+   status = NavQuery.findPath ( start_poly, end_poly, start_nearest_point, end_nearest_point, &QueryFilter, PolyPath, &path_poly_count, MAX_SINGLEPATHPOLY ) ;
+
+   // DT_PARTIAL_RESULT doesn't necessarily mean we ran out of nodes, it can just mean the end point is not exactly the same as the target, which can happen if the target position is off the mesh by a bit,
+   // which is usually fine.
+   status = status & ~DT_PARTIAL_RESULT ;
+
+   // We give it a second go here, instead we should probably allow partial paths, or have a more rebust search to determine if we can get there
+   if ( ( status & DT_OUT_OF_NODES ) &&
+        ( path_poly_count > 0 ) )
+   {
+      auto new_start      = PolyPath [ path_poly_count -1 ] ;
+      auto new_start_poly = PolyPath + path_poly_count ;
+      
+      auto extended_path_poly_count = 0 ;
+
+      // Remove the partial result flag so we know what the extended search status is
+      status = status & ~DT_OUT_OF_NODES ;
+
+      status = NavQuery.findPath ( new_start, end_poly, start_nearest_point, end_nearest_point, &QueryFilter, new_start_poly, &extended_path_poly_count, MAX_SINGLEPATHPOLY ) ;
+
+      path_poly_count += extended_path_poly_count ;
+   }
+
+   if ( ( status & DT_FAILURE ) ||
+        ( status & DT_STATUS_DETAIL_MASK ) )
+   {
+      return FindPathReturnCode::CANNOT_CREATE_PATH ; // couldn't create a path
+   }
+
+   if ( path_poly_count == 0 )
+   {
+      return FindPathReturnCode::CANNOT_FIND_PATH ; // couldn't find a path
+   }
+
+   status = NavQuery.findStraightPath ( start_nearest_point, end_nearest_point, PolyPath, path_poly_count, StraightPath, nullptr, nullptr, &vertex_count, MAX_PATHVERT, DT_STRAIGHTPATH_AREA_CROSSINGS ) ;
+
+   if ( ( status & DT_FAILURE ) ||
+        ( status & DT_STATUS_DETAIL_MASK ) )
+   {
+      return FindPathReturnCode::CANNOT_CREATE_STRAIGHT_PATH ; // couldn't create a path
+   }
+
+   if ( vertex_count == 0 )
+   {
+      return FindPathReturnCode::CANNOT_FIND_STRAIGHT_PATH ; // couldn't find a path
+   }
+   else
+   {
+      return FindPathReturnCode::PATH_FOUND ;
+   }
 }

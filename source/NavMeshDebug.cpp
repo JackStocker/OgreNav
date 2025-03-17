@@ -1,5 +1,6 @@
 #include "NavMeshDebug.h"
 #include "DebugManager.h"
+#include "SoftAssert.h"
 
 // Detour
 #include "OgreDetourTileCache.h"
@@ -112,10 +113,12 @@ PointDistanceToLine2d ( const float *point,
 }
 
 NavMeshDebug::
-NavMeshDebug ( const dtTileCache    &tile_cache,
+NavMeshDebug ( const OgreRecast     &recast,
+               const dtTileCache    &tile_cache,
                const dtNavMesh      &nav_mesh,
                const dtNavMeshQuery &nav_query ) :
    CurrentDebugManager ( DebugManager::GetDebugManager () ),
+   Recast              ( recast ),
    TileCache           ( tile_cache ),
    NavMesh             ( nav_mesh ),
    NavQuery            ( nav_query )
@@ -124,6 +127,7 @@ NavMeshDebug ( const dtTileCache    &tile_cache,
    InputMeshDebugId = INVALID_DEBUG_ID ;
    DrawTiles        = false ;
    DrawObstacles    = false ;
+   DrawGrid_        = false ;
 }
 
 NavMeshDebug::
@@ -175,48 +179,78 @@ SetDrawObstacles ( const bool draw_obstacles )
 
 void
 NavMeshDebug::
-RedrawTile ( const std::size_t    tile_x,
-             const std::size_t    tile_z )
+SetDrawGrid ( const bool draw_grid )
 {
-   // Find or create tile
-   auto tile_iter = std::find_if ( TileList.begin (),
-                                   TileList.end (),
-                                   [&] ( const Tile &tile )
-                                      {
-                                         return ( ( tile.TileXIndex == tile_x ) &&
-                                                  ( tile.TileZIndex == tile_z ) ) ;
-                                      } ) ;
-
-   if ( tile_iter == TileList.end () )
+   if ( DrawGrid_ != draw_grid )
    {
-      Tile new_tile = { tile_x, tile_z } ;
-      TileList.emplace_back ( new_tile ) ;
+      DrawGrid_ = draw_grid ;
 
-      tile_iter = std::prev ( TileList.end () ) ;
-   }
-   else
-   {
-      auto &tile = *tile_iter ;
-
-      for ( auto &poly_id : tile.PolygonList )
+      if ( ! DrawGrid_ )
       {
-         CurrentDebugManager.DestroyDebugObject ( poly_id ) ;
+         RemoveGrid () ;
+      }
+      else
+      {
+         //if ( Recast.GetInputGeometry () )
+         //{
+         //   DrawGrid ( *Recast.GetInputGeometry () ) ;
+         //}
+
+         for ( auto* solid : Recast.GetHeightField () )
+         {
+            DrawHeightField ( *solid ) ;
+         }
+      }
+   }
+}
+
+void
+NavMeshDebug::
+RedrawTile ( const std::size_t tile_x,
+             const std::size_t tile_z )
+{
+   if ( DrawTiles )
+   {
+      // Find or create tile
+      auto tile_iter = std::find_if ( TileList.begin (),
+                                      TileList.end (),
+                                      [&] ( const Tile &tile )
+                                         {
+                                            return ( ( tile.TileXIndex == tile_x ) &&
+                                                     ( tile.TileZIndex == tile_z ) ) ;
+                                         } ) ;
+
+      if ( tile_iter == TileList.end () )
+      {
+         Tile new_tile = { tile_x, tile_z, {}, {} } ;
+         TileList.emplace_back ( new_tile ) ;
+
+         tile_iter = std::prev ( TileList.end () ) ;
+      }
+      else
+      {
+         auto &tile = *tile_iter ;
+
+         for ( auto &poly_id : tile.PolygonList )
+         {
+            CurrentDebugManager.DestroyDebugObject ( poly_id ) ;
+         }
+
+         for ( auto &dot_id : tile.DotList )
+         {
+            CurrentDebugManager.DestroyDebugObject ( dot_id ) ;
+         }
+
+         tile.PolygonList.clear () ;
+         tile.DotList.clear () ;
       }
 
-      for ( auto &dot_id : tile.DotList )
+      const dtMeshTile *tile = NavMesh.getTileAt ( tile_x, tile_z, 0 ) ;
+
+      if ( tile )
       {
-         CurrentDebugManager.DestroyDebugObject ( dot_id ) ;
+         DrawTile ( NavMesh.getPolyRefBase ( tile ), NavQuery, *tile, *tile_iter ) ;
       }
-
-      tile.PolygonList.clear () ;
-      tile.DotList.clear () ;
-   }
-
-   const dtMeshTile *tile = NavMesh.getTileAt ( tile_x, tile_z, 0 ) ;
-
-   if ( tile )
-   {
-      DrawTile ( NavMesh.getPolyRefBase ( tile ), NavQuery, *tile, *tile_iter ) ;
    }
 }
 
@@ -224,17 +258,20 @@ void
 NavMeshDebug::
 RedrawAllTilesUnderObstacles ()
 {
-   for ( int obstacle_index = 0 ; obstacle_index < TileCache.getObstacleCount () ; ++obstacle_index )
+   if ( DrawTiles )
    {
-      const dtTileCacheObstacle *obstacle = TileCache.getObstacle ( obstacle_index ) ;
-
-      for ( int tile_index = 0 ; tile_index < obstacle->ntouched ; ++tile_index )
+      for ( int obstacle_index = 0 ; obstacle_index < TileCache.getObstacleCount () ; ++obstacle_index )
       {
-         const dtCompressedTile *tile = TileCache.getTileByRef ( obstacle->touched [ tile_index ] ) ;
+         const dtTileCacheObstacle *obstacle = TileCache.getObstacle ( obstacle_index ) ;
 
-         if ( tile )
+         for ( int tile_index = 0 ; tile_index < obstacle->ntouched ; ++tile_index )
          {
-            RedrawTile ( tile->header->tx, tile->header->ty ) ;
+            const dtCompressedTile *tile = TileCache.getTileByRef ( obstacle->touched [ tile_index ] ) ;
+
+            if ( tile )
+            {
+               RedrawTile ( tile->header->tx, tile->header->ty ) ;
+            }
          }
       }
    }
@@ -299,7 +336,10 @@ DrawEntireNavMesh ( const dtTileCache    &tile_cache,
 
    DrawAllObstacles ( tile_cache ) ;
 
-   //DrawGrid ( input_geom ) ;
+   if ( Recast.GetInputGeometry () )
+   {
+      DrawGrid ( *Recast.GetInputGeometry () ) ;
+   }
 
    DrawAllTiles ( nav_mesh, nav_query ) ;
 
@@ -318,7 +358,7 @@ DrawAllTiles ( const dtNavMesh      &mesh,
 
       if ( tile->header )
       {
-         Tile new_tile = { tile->header->x, tile->header->y } ;
+         Tile new_tile = { static_cast <std::size_t> ( tile->header->x ), static_cast <std::size_t> ( tile->header->y ), {}, {} } ;
 
          DrawTile ( mesh.getPolyRefBase ( tile ), query, *tile, new_tile ) ;
 
@@ -437,6 +477,41 @@ DrawInputMesh ( const InputGeom &input_geom )
       }
 
       InputMeshDebugId = CurrentDebugManager.CreateDebugTrianglePoly ( triangle_list, Ogre::ColourValue::Black ) ;
+   }
+}
+
+void
+NavMeshDebug::
+DrawHeightField ( const rcHeightfield &height_field )
+{
+   const float* orig = height_field.bmin ;
+   const float cs = height_field.cs ;
+   const float ch = height_field.ch ;
+
+   const int w = height_field.width ;
+   const int h = height_field.height ;
+
+   for ( int y = 0 ; y < h ; ++y )
+   {
+      for ( int x = 0 ; x < w ; ++x )
+      {
+         float fx = orig [ 0 ] + x * cs ;
+         float fz = orig [ 2 ] + y * cs ;
+         const rcSpan* s = height_field.spans [ x + y * w ] ;
+
+         while ( s )
+         {
+            Ogre::Vector3 min ( fx, orig [ 1 ] + s->smin * ch, fz ) ;
+            Ogre::Vector3 max ( fx + cs, orig [ 1 ] + s->smax * ch, fz + cs ) ;
+
+            if ( std::abs ( min.y ) > 0.1f )
+            {
+               CurrentDebugManager.CreateDebugAABB ( min, max, Ogre::ColourValue ( 0.5f, 0.5f, 0.5f, 0.75f ) ) ;
+            }
+
+            s = s->next;
+         }
+      }
    }
 }
 
@@ -751,10 +826,13 @@ GeneratorBoxForObstacle ( const dtTileCacheObstacle &obstacle )
       Ogre::Vector3 min ;
       Ogre::Vector3 max ;
 
-      OgreRecast::FloatAToOgreVect3 ( obstacle.box.bmin, min ) ;
-      OgreRecast::FloatAToOgreVect3 ( obstacle.box.bmax, max ) ;
+      //OgreRecast::FloatAToOgreVect3 ( obstacle.box.bmin, min ) ;
+      //OgreRecast::FloatAToOgreVect3 ( obstacle.box.bmax, max ) ;
 
-      return CurrentDebugManager.CreateDebugAABB ( min, max, Ogre::ColourValue ( 0.5f, 0.5f, 0.5f, 0.5f ) ) ;
+      OgreRecast::FloatAToOgreVect3 ( obstacle.BoundsMin, min ) ;
+      OgreRecast::FloatAToOgreVect3 ( obstacle.BoundsMax, max ) ;
+
+      return CurrentDebugManager.CreateDebugAABB ( min, max, Ogre::ColourValue ( 0.5f, 0.5f, 0.5f, 0.75f ) ) ;
    }
    else if ( obstacle.type == DT_OBSTACLE_ORIENTED_BOX )
    {
@@ -765,9 +843,9 @@ GeneratorBoxForObstacle ( const dtTileCacheObstacle &obstacle )
       OgreRecast::FloatAToOgreVect3 ( obstacle.orientedBox.halfExtents, half_extents ) ;
 
       float left  = -half_extents.x ;
-      float far   = -half_extents.z ;
+      float far_   = -half_extents.z ;
       float right = +half_extents.x ;
-      float near  = +half_extents.z ;
+      float near_  = +half_extents.z ;
 
       auto rotate_point = [] ( float &x,
                                float &z,
@@ -779,17 +857,17 @@ GeneratorBoxForObstacle ( const dtTileCacheObstacle &obstacle )
                                   z = ( rot_aux [ 1 ] * z2 ) - ( rot_aux [ 0 ] * x2 ) ;
                                } ;
 
-      rotate_point ( left,  far,  obstacle.orientedBox.rotAux ) ;
-      rotate_point ( right, near, obstacle.orientedBox.rotAux ) ;
+      rotate_point ( left,  far_,  obstacle.orientedBox.rotAux ) ;
+      rotate_point ( right, near_, obstacle.orientedBox.rotAux ) ;
 
-      Ogre::Vector3 far_left_bottom   = centre + Ogre::Vector3 ( left,  -half_extents.y, far ) ;
-      Ogre::Vector3 far_right_bottom  = centre + Ogre::Vector3 ( right, -half_extents.y, far ) ;
-      Ogre::Vector3 near_left_bottom  = centre + Ogre::Vector3 ( left,  -half_extents.y, near ) ;
-      Ogre::Vector3 near_right_bottom = centre + Ogre::Vector3 ( right, -half_extents.y, near ) ;
-      Ogre::Vector3 far_left_top      = centre + Ogre::Vector3 ( left,  +half_extents.y, far ) ;
-      Ogre::Vector3 far_right_top     = centre + Ogre::Vector3 ( right, +half_extents.y, far ) ;
-      Ogre::Vector3 near_left_top     = centre + Ogre::Vector3 ( left,  +half_extents.y, near ) ;
-      Ogre::Vector3 near_right_top    = centre + Ogre::Vector3 ( right, +half_extents.y, near ) ;
+      Ogre::Vector3 far_left_bottom   = centre + Ogre::Vector3 ( left,  -half_extents.y, far_ ) ;
+      Ogre::Vector3 far_right_bottom  = centre + Ogre::Vector3 ( right, -half_extents.y, far_ ) ;
+      Ogre::Vector3 near_left_bottom  = centre + Ogre::Vector3 ( left,  -half_extents.y, near_ ) ;
+      Ogre::Vector3 near_right_bottom = centre + Ogre::Vector3 ( right, -half_extents.y, near_ ) ;
+      Ogre::Vector3 far_left_top      = centre + Ogre::Vector3 ( left,  +half_extents.y, far_ ) ;
+      Ogre::Vector3 far_right_top     = centre + Ogre::Vector3 ( right, +half_extents.y, far_ ) ;
+      Ogre::Vector3 near_left_top     = centre + Ogre::Vector3 ( left,  +half_extents.y, near_ ) ;
+      Ogre::Vector3 near_right_top    = centre + Ogre::Vector3 ( right, +half_extents.y, near_ ) ;
 
       std::vector <Ogre::Vector3> point_list = { far_left_bottom, far_left_top, far_right_top, far_right_bottom, // Far side
                                                  far_right_top, near_right_top, near_right_bottom, // Right side
@@ -800,7 +878,7 @@ GeneratorBoxForObstacle ( const dtTileCacheObstacle &obstacle )
    }
    else if ( obstacle.type == DT_OBSTACLE_CONVEX_POLYGON )
    {
-      assert ( obstacle.convexPolygon.nverts == 4 ) ;
+      SoftAssert ( obstacle.convexPolygon.nverts == 4 ) ;
 
       std::vector <Ogre::Vector3> point_list = { Ogre::Vector3 ( obstacle.convexPolygon.verts [ 0 ], obstacle.convexPolygon.verts [ 1 ], obstacle.convexPolygon.verts [ 2 ] ),
                                                  Ogre::Vector3 ( obstacle.convexPolygon.verts [ 3 ], obstacle.convexPolygon.verts [ 4 ], obstacle.convexPolygon.verts [ 5 ] ),
@@ -812,7 +890,7 @@ GeneratorBoxForObstacle ( const dtTileCacheObstacle &obstacle )
    }
    else
    {
-      assert ( false && "Obstacle found with an invalid type" ) ;
+      SoftAssert ( false && "Obstacle found with an invalid type" ) ;
       return INVALID_DEBUG_ID ;
    }
 }

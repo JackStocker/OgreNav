@@ -49,8 +49,11 @@
 #include "DetourNavMeshBuilder.h"
 #include "DetourNavMeshQuery.h"
 
-#define MAX_PATHPOLY      512 // max number of polygons in a path
-#define MAX_PATHVERT      1024 // most verts in a path
+#include <OgreVector3.h>
+
+#define MAX_SINGLEPATHPOLY   512  // max number of polygons in a single path
+#define MAX_EXTENDEDPATHPOLY 1024 // max number of polygons in a combined path (where the first path didn't reach the destination)
+#define MAX_PATHVERT         1024 // most verts in a path
 
 enum PolyAreas : unsigned short // Each area can only have one type
 {
@@ -87,5 +90,16 @@ enum PolyFlags : unsigned short // Each poly can have multiple flags in a mask w
 
    POLYFLAGS_ALL         = 0xFFFF, // All poly areas
 } ;
+
+//
+struct TerrainArea // Only square for the moment
+{
+   Ogre::Vector3 Centre ;
+   float         Width ;
+   float         Depth ;
+   unsigned int  AreaId ; // Area identifier from OgreRecastDefinitions.h::PolyAreas
+} ;
+
+using TerrainAreaVector = std::vector <TerrainArea> ;
 
 #endif // #ifndef __OgreRecastDefinitions_h_

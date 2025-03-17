@@ -41,7 +41,7 @@
 #include <Ogre.h>
 
 class  OgreRecastNavmeshPruner ;
-struct OgreRecastConfigParams ;
+class  OgreRecastConfigParams ;
 class  NavMeshDebug ;
 class  dtNavMeshQuery ;
 
@@ -67,25 +67,39 @@ public:
             const bool  until_up_to_date ) ;
 
    bool
-   Generate ( const unsigned int         max_num_obstacles,
+   Generate ( const OgreRecastConfigParams &config_params, // Config parameters are re-set as they may be different if an existing navmesh file was loaded.
+              const unsigned int         max_num_obstacles,
               const int                  tile_size,
-              std::vector<Ogre::Entity*> source_meshes,
+              std::vector<Ogre::ManualObject*> source_meshes,
               const TerrainAreaVector    &area_list ) ;
 
    bool
-   Load ( const Ogre::String         &filename,
-          const unsigned int         max_num_obstacles,
-          const int                  tile_size,
-          std::vector<Ogre::Entity*> source_meshes ) ;
+   Load ( const Ogre::String &filename,
+          const unsigned int max_num_obstacles,
+          const int          tile_size ) ;
 
    bool
    Save ( const Ogre::String &filename ) ;
+
+   std::vector <std::uint8_t>
+   ToBytes () ;
+
+   bool
+   FromBytes ( const std::vector <std::uint8_t> &bytes,
+               const unsigned int               max_num_obstacles,
+               const int                        tile_size ) ;
 
    // A navigation mesh must have been Generated or Loaded before this is called otherwise a nullptr is returned.
    // When a navigation mesh is deleted (e.g. Generate or Load called again will delete any existing), then the
    // previous debugger is invalid as the returned pointer is tied to a given navigation mesh instance.
    std::unique_ptr <NavMeshDebug>
    CreateNavMeshDebugger () ;
+
+   const InputGeom*
+   GetInputGeometry () const ;
+
+   const std::vector <rcHeightfield*>
+   GetHeightField () const ;
 
    dtObstacleRef
    AddObstacle ( const Ogre::Vector3  &min,
@@ -108,12 +122,6 @@ public:
    bool
    RemoveObstacle ( dtObstacleRef ref ) ;
 
-   int
-   AddConvexVolume ( ConvexVolume *vol ) ;
-
-   bool
-   DeleteConvexVolume ( int volume_index ) ;
-
    // Find a path beween start point and end point and, if possible, generates a list of lines in a path.
    // It might fail if the start or end points aren't near any navmesh polygons, or if the path is too long,
    // or it can't make a path, or various other reasons.
@@ -130,6 +138,32 @@ public:
               const unsigned int         include_flags,
               const unsigned int         exclude_flags,
               std::vector<Ogre::Vector3> &path ) ;
+
+   FindPathReturnCode
+   CanPathTo ( float              *start_pos,
+               float              *end_pos,
+               const unsigned int include_flags,
+               const unsigned int exclude_flags,
+               Ogre::Vector3      &final_node ) ;
+
+   FindPathReturnCode
+   CanPathTo ( const Ogre::Vector3 &start_pos,
+               const Ogre::Vector3 &end_pos,
+               const unsigned int  include_flags,
+               const unsigned int  exclude_flags,
+               Ogre::Vector3       &final_node ) ;
+
+   FindPathReturnCode
+   IsStraightLinePathTo ( float              *start_pos,
+                          float              *end_pos,
+                          const unsigned int include_flags,
+                          const unsigned int exclude_flags ) ;
+
+   FindPathReturnCode
+   IsStraightLinePathTo ( const Ogre::Vector3 &start_pos,
+                          const Ogre::Vector3 &end_pos,
+                          const unsigned int  include_flags,
+                          const unsigned int  exclude_flags ) ;
 
    // Find a point on the navmesh closest to the specified point position, within predefined
    // bounds.
@@ -163,10 +197,21 @@ private :
    void
    ConfigureBuildParameters ( const OgreRecastConfigParams &config_params ) ;
 
+   FindPathReturnCode
+   FindPath ( float*             start_pos,
+              float*             end_pos,
+              const unsigned int include_flags,
+              const unsigned int exclude_flags,
+              int                &vertex_count ) ;
+
    rcConfig                              RecastConfig ;
    rcContext                             BuildContext ;
    std::unique_ptr <OgreDetourTileCache> TileCache ;
    dtNavMeshQuery                        NavQuery ;
+
+   // Path search data caching so we do not need to keep re-creating the arrays
+   dtPolyRef PolyPath     [ MAX_EXTENDEDPATHPOLY ] ;
+   float     StraightPath [ MAX_PATHVERT * 3 ] ;
 
    // The poly filter that will be used for all (random) point and nearest poly searches.
    PlayerFlagQueryFilter QueryFilter ;
@@ -175,4 +220,6 @@ private :
    // This offset is used in all search for points on the navmesh.
    // The maximum offset that a specified point can be off from the navmesh.
    float PolySearchBox [ 3 ] ;
+
+   bool KeepInterResults = false ;
 } ;

@@ -247,8 +247,12 @@ dtTileCache::
 SetObstacleFlags ( dtNavMesh           &navmesh,
                    dtTileCacheObstacle &obstacle )
 {
-   if ( obstacle.state == DT_OBSTACLE_PROCESSED )
+   if ( ( obstacle.state == DT_OBSTACLE_PROCESSED ) &&
+        ( obstacle.area_id == POLYAREA_GATE ) ) // Currently only GATE obstacles apply flags
    {
+      // Obstacles must apply their flags to the specific polygons that they cover to mark the area.
+      // We don't know which polygons were created because of each obstacle so we have to query the tiles that are under us,
+      // then determine which polygon(s) are within the obstacles bounds, and apply them directly.
       for ( auto tile_index = 0 ; tile_index < obstacle.ntouched ; ++tile_index )
       {
          const auto         tile_ref  = obstacle.touched [ tile_index ] ;
@@ -261,16 +265,44 @@ SetObstacleFlags ( dtNavMesh           &navmesh,
 
             if ( tile.salt == tile_salt )
             {
-               auto *dt_tile = navmesh.getTileAt ( tile.header->tx, tile.header->ty, tile.header->tlayer ) ;
+               auto* dt_tile = navmesh.getTileAt ( tile.header->tx, tile.header->ty, tile.header->tlayer ) ;
 
                if ( dt_tile ) // I guess this could change if the tile is rebuilt?
                {
                   for ( auto poly_index = 0 ; poly_index < dt_tile->header->polyCount ; ++poly_index )
                   {
-                     if ( dt_tile->polys [ poly_index ].getArea () == POLYAREA_GATE )
+                     auto &poly = dt_tile->polys [ poly_index ] ;
+
+                     if ( poly.getArea () == POLYAREA_GATE )
                      {
-                        //std::cout << "Changing poly flag from: " << dt_tile->polys [ poly_index ].flags << " to: " << obstacle.flag << std::endl ;
-                        dt_tile->polys [ poly_index ].flags = obstacle.flag ;
+                        // Determine if this polygon is under the obstacle by getting the centre of the polygon and checking it is within the obstacle bounds
+                        float poly_middle_x = 0 ;
+                        float poly_middle_y = 0 ;
+                        float poly_middle_z = 0 ;
+
+                        for ( auto poly_vertex_index = 0U ; poly_vertex_index < poly.vertCount ; ++poly_vertex_index )
+                        {
+                           const float* vertex = &dt_tile->verts [ poly.verts [ poly_vertex_index ] * 3 ] ;
+
+                           poly_middle_x += vertex [ 0 ] ;
+                           poly_middle_y += vertex [ 1 ] ;
+                           poly_middle_z += vertex [ 2 ] ;
+                        }
+
+                        poly_middle_x /= poly.vertCount ;
+                        poly_middle_y /= poly.vertCount ;
+                        poly_middle_z /= poly.vertCount ;
+
+                        // Only the polygons that are within the obstacle bounds should have the flags applied, otherwise we will apply GATE flags to every polygon in the tile
+                        if ( ( poly_middle_x >= obstacle.BoundsMin [ 0 ] ) &&
+                             ( poly_middle_x <= obstacle.BoundsMax [ 0 ] ) &&
+                             ( poly_middle_y >= obstacle.BoundsMin [ 1 ] ) &&
+                             ( poly_middle_y <= obstacle.BoundsMax [ 1 ] ) &&
+                             ( poly_middle_z >= obstacle.BoundsMin [ 2 ] ) &&
+                             ( poly_middle_z <= obstacle.BoundsMax [ 2 ] ) )
+                        {
+                           poly.flags = obstacle.flag ;
+                        }
                      }
                   }
                }
@@ -283,6 +315,69 @@ SetObstacleFlags ( dtNavMesh           &navmesh,
    else
    {
       return DT_FAILURE ;
+   }
+}
+
+void
+dtTileCache::
+ApplyObstacleFlagsToTile ( dtNavMesh                 &navmesh,
+                           const dtCompressedTile    &tile,
+                           const dtCompressedTileRef ref )
+{
+   // Obstacles must apply their flags to the specific polygons that they cover to mark the area.
+   // We don't know which polygons were created because of each obstacle so we have to look through them and find the tiles that are touched,
+   // then determine which polygon(s) are within the obstacles bounds, and apply them directly.
+   auto* dt_tile = navmesh.getTileAt ( tile.header->tx, tile.header->ty, tile.header->tlayer ) ;
+
+   if ( dt_tile ) // I guess this could change if the tile is rebuilt?
+   {
+      for ( auto poly_index = 0 ; poly_index < dt_tile->header->polyCount ; ++poly_index )
+      {
+         auto& poly = dt_tile->polys [ poly_index ] ;
+
+         if ( poly.getArea () == POLYAREA_GATE )
+         {
+            // Determine if this polygon is under the obstacle by getting the centre of the polygon and checking it is within the obstacle bounds
+            float poly_middle_x = 0 ;
+            float poly_middle_y = 0 ;
+            float poly_middle_z = 0 ;
+
+            for ( auto poly_vertex_index = 0U ; poly_vertex_index < poly.vertCount ; ++poly_vertex_index )
+            {
+               const float* vertex = &dt_tile->verts [ poly.verts [ poly_vertex_index ] * 3 ] ;
+
+               poly_middle_x += vertex [ 0 ] ;
+               poly_middle_y += vertex [ 1 ] ;
+               poly_middle_z += vertex [ 2 ] ;
+            }
+
+            poly_middle_x /= poly.vertCount ;
+            poly_middle_y /= poly.vertCount ;
+            poly_middle_z /= poly.vertCount ;
+
+            for ( int i = 0; i < m_params.maxObstacles; ++i )
+            {
+               const auto &obstacle = m_obstacles [ i ] ;
+
+               if ( ( ( obstacle.state == DT_OBSTACLE_PROCESSING ) || // When we are adding a new obstacle it will still be processing until buildNavMeshTile has returned
+                      ( obstacle.state == DT_OBSTACLE_PROCESSED ) ) &&
+                    ( obstacle.area_id == POLYAREA_GATE ) && // Currently only GATE obstacles apply flags
+                    contains ( obstacle.touched, obstacle.ntouched, ref ) ) // We only care if this obstacle touches this tile
+               {
+                  // Only the polygons that are within the obstacle bounds should have the flags applied, otherwise we will apply GATE flags to every polygon in the tile
+                  if ( ( poly_middle_x >= obstacle.BoundsMin [ 0 ] ) &&
+                       ( poly_middle_x <= obstacle.BoundsMax [ 0 ] ) &&
+                       ( poly_middle_y >= obstacle.BoundsMin [ 1 ] ) &&
+                       ( poly_middle_y <= obstacle.BoundsMax [ 1 ] ) &&
+                       ( poly_middle_z >= obstacle.BoundsMin [ 2 ] ) &&
+                       ( poly_middle_z <= obstacle.BoundsMax [ 2 ] ) )
+                  {
+                     poly.flags = obstacle.flag ;
+                  }
+               }
+            }
+         }
+      }
    }
 }
 
@@ -427,6 +522,8 @@ dtStatus dtTileCache::addObstacle(const float* pos, const float radius, const fl
    ob->area_id = area_id ;
    ob->flag    = flag ;
 
+   getObstacleBounds ( ob, ob->BoundsMin, ob->BoundsMax ) ;
+
    ObstacleRequest* req = &m_reqs[m_nreqs++];
    memset(req, 0, sizeof(ObstacleRequest));
    req->action = REQUEST_ADD;
@@ -460,8 +557,12 @@ dtStatus dtTileCache::addBoxObstacle(const float* bmin, const float* bmax, dtObs
    ob->salt = salt;
    ob->state = DT_OBSTACLE_PROCESSING;
    ob->type = DT_OBSTACLE_BOX;
-   dtVcopy(ob->box.bmin, bmin);
-   dtVcopy(ob->box.bmax, bmax);
+   //dtVcopy(ob->box.bmin, bmin);
+   //dtVcopy(ob->box.bmax, bmax);
+
+   dtVcopy(ob->BoundsMin, bmin);
+   dtVcopy(ob->BoundsMax, bmax);
+   getObstacleBounds ( ob, ob->BoundsMin, ob->BoundsMax ) ;
 
    ob->area_id = area_id ;
    ob->flag    = flag ;
@@ -509,6 +610,8 @@ dtStatus dtTileCache::addBoxObstacle(const float* center, const float* halfExten
 
    ob->area_id = area_id ;
    ob->flag    = flag ;
+
+   getObstacleBounds ( ob, ob->BoundsMin, ob->BoundsMax ) ;
 
    ObstacleRequest* req = &m_reqs[m_nreqs++];
    memset(req, 0, sizeof(ObstacleRequest));
@@ -565,6 +668,8 @@ addPolygonObstacle ( const float   *convexHullVertices,
 
    ob->area_id = area_id ;
    ob->flag    = flag ;
+
+   getObstacleBounds ( ob, ob->BoundsMin, ob->BoundsMax ) ;
 
    ObstacleRequest* req = &m_reqs [ m_nreqs++ ] ;
    memset ( req, 0, sizeof ( ObstacleRequest ) ) ;
@@ -657,11 +762,12 @@ dtStatus dtTileCache::update(const float /*dt*/, dtNavMesh* navmesh,
          if (req->action == REQUEST_ADD)
          {
             // Find touched tiles.
-            float bmin[3], bmax[3];
-            getObstacleBounds(ob, bmin, bmax);
+            //float bmin[3], bmax[3];
+            //getObstacleBounds(ob, bmin, bmax);
 
             int ntouched = 0;
-            queryTiles(bmin, bmax, ob->touched, &ntouched, DT_MAX_TOUCHED_TILES);
+            //queryTiles(bmin, bmax, ob->touched, &ntouched, DT_MAX_TOUCHED_TILES);
+            queryTiles ( ob->BoundsMin, ob->BoundsMax, ob->touched, &ntouched, DT_MAX_TOUCHED_TILES );
             ob->ntouched = (unsigned char)ntouched;
             // Add tiles to update list.
             ob->npending = 0;
@@ -730,8 +836,6 @@ dtStatus dtTileCache::update(const float /*dt*/, dtNavMesh* navmesh,
                if (ob->state == DT_OBSTACLE_PROCESSING)
                {
                   ob->state = DT_OBSTACLE_PROCESSED;
-
-                  SetObstacleFlags ( *navmesh, *ob ) ;
                }
                else if (ob->state == DT_OBSTACLE_REMOVING)
                {
@@ -751,6 +855,22 @@ dtStatus dtTileCache::update(const float /*dt*/, dtNavMesh* navmesh,
 
    if (upToDate)
       *upToDate = m_nupdate == 0 && m_nreqs == 0;
+
+   // Below has been replaced by applying the flags when the tile is being built, so we don't need to search through the tile list
+   //
+   // After modifying the mesh we must re-apply any obstacle flags as they are cleared when the tiles are rebuilt
+   /*{
+      // Re-apply the obstacle flags
+      for ( int i = 0; i < m_params.maxObstacles; ++i )
+      {
+         dtTileCacheObstacle* ob = &m_obstacles[ i ];
+
+         if ( ob->state == DT_OBSTACLE_PROCESSED )
+         {
+            SetObstacleFlags ( *navmesh, *ob, i ) ;
+         }
+      }
+   }*/
 
    return status;
 }
@@ -811,8 +931,10 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
          }
          else if (ob->type == DT_OBSTACLE_BOX)
          {
+            //dtMarkBoxArea(*bc.layer, tile->header->bmin, m_params.cs, m_params.ch,
+            //   ob->box.bmin, ob->box.bmax, ob->area_id);
             dtMarkBoxArea(*bc.layer, tile->header->bmin, m_params.cs, m_params.ch,
-               ob->box.bmin, ob->box.bmax, ob->area_id);
+               ob->BoundsMin, ob->BoundsMax, ob->area_id);
          }
          else if (ob->type == DT_OBSTACLE_ORIENTED_BOX)
          {
@@ -906,6 +1028,10 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
       }
    }
 
+   //
+   ApplyObstacleFlagsToTile ( *navmesh, *tile, ref ) ;
+   //
+
    return DT_SUCCESS;
 }
 
@@ -935,8 +1061,11 @@ void dtTileCache::getObstacleBounds(const struct dtTileCacheObstacle* ob, float*
    }
    else if (ob->type == DT_OBSTACLE_BOX)
    {
-      dtVcopy(bmin, ob->box.bmin);
-      dtVcopy(bmax, ob->box.bmax);
+      //dtVcopy(bmin, ob->box.bmin);
+      //dtVcopy(bmax, ob->box.bmax);
+
+       dtVcopy(bmin, ob->BoundsMin );
+       dtVcopy(bmax, ob->BoundsMax );
    }
    else if (ob->type == DT_OBSTACLE_ORIENTED_BOX)
    {

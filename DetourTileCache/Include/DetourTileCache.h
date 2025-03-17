@@ -52,8 +52,6 @@ struct dtObstacleCylinder
 
 struct dtObstacleBox
 {
-   float bmin[ 3 ];
-   float bmax[ 3 ];
 };
 
 struct dtObstacleOrientedBox
@@ -92,6 +90,9 @@ struct dtTileCacheObstacle
    unsigned char  area_id;
    unsigned short flag;
    dtTileCacheObstacle* next;
+
+   float BoundsMin[ 3 ];
+   float BoundsMax[ 3 ];
 };
 
 struct dtTileCacheParams
@@ -134,9 +135,16 @@ public:
 
    const dtTileCacheObstacle* getObstacleByRef(dtObstacleRef ref);
 
+   //
    dtStatus
    SetObstacleFlags ( class dtNavMesh     &navmesh,
                       dtTileCacheObstacle &obstacle ) ;
+
+   void
+   ApplyObstacleFlagsToTile ( class dtNavMesh           &navmesh,
+                              const dtCompressedTile    &tile,
+                              const dtCompressedTileRef ref ) ;
+   //
 
    dtObstacleRef getObstacleRef(const dtTileCacheObstacle* obmin) const;
 
@@ -278,7 +286,7 @@ private:
    dtTileCacheObstacle* m_obstacles;
    dtTileCacheObstacle* m_nextFreeObstacle;
 
-   static const int MAX_REQUESTS = 256;
+   static const int MAX_REQUESTS = 4096; // Originally 256, but needs to be much larger for loading a Save
    ObstacleRequest m_reqs[MAX_REQUESTS];
    int m_nreqs;
 
