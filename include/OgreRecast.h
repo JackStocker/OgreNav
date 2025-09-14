@@ -122,6 +122,13 @@ public:
    bool
    RemoveObstacle ( dtObstacleRef ref ) ;
 
+   OffMeshConnectionId
+   AddOffMeshConnection ( const Ogre::Vector3 start_pos,
+                          const Ogre::Vector3 end_pos ) ;
+
+   void
+   RemoveOffMeshConnection ( const OffMeshConnectionId id ) ;
+
    // Find a path beween start point and end point and, if possible, generates a list of lines in a path.
    // It might fail if the start or end points aren't near any navmesh polygons, or if the path is too long,
    // or it can't make a path, or various other reasons.

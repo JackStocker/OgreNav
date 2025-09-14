@@ -45,6 +45,13 @@
 class OgreRecast ;
 class NavMeshDebug ;
 
+struct OffMeshConnection
+{
+   size_t        Id       = 0 ;
+   Ogre::Vector3 StartPos = Ogre::Vector3::ZERO ;
+   Ogre::Vector3 EndPos   = Ogre::Vector3::ZERO ;
+} ;
+
 // Implementation of the meshProcess callback that detourTileCache
 // does after building a navmesh. It allows you to do some extra
 // processing on the navmesh, such as connecting off-mesh connections
@@ -55,6 +62,9 @@ class NavMeshDebug ;
 // post-processing phase.
 struct MeshProcess : public dtTileCacheMeshProcess
 {
+   MeshProcess ( const std::vector <OffMeshConnection> &off_mesh_connections,
+                 bool                                  &off_mesh_connections_dirty ) ;
+
    // Callback that happens after navmesh has been constructed.
    // Allows you to do some additional post-processing on the navmesh,
    // such as adding off-mesh connections or marking poly areas with
@@ -63,6 +73,17 @@ struct MeshProcess : public dtTileCacheMeshProcess
    process ( dtNavMeshCreateParams *params,
              unsigned char         *poly_areas,
              unsigned short        *poly_flags ) override ;
+
+private :
+   const std::vector <OffMeshConnection> &OffMeshConnections ;
+   bool                                  &OffMeshConnectionsDirty ;
+
+   std::vector <float>          verts ;
+   std::vector <float>          rads ;
+   std::vector <unsigned char>  dir ;
+   std::vector <unsigned char>  areas ;
+   std::vector <unsigned short> flags ;
+   std::vector <unsigned int>   userIds ;
 } ;
 
 // FastLZ implementation of detour tile cache tile compressor.
@@ -369,6 +390,13 @@ public :
    bool
    DeleteConvexVolume ( int i ) ;
 
+   OffMeshConnectionId
+   AddOffMeshConnection ( const Ogre::Vector3 start_pos,
+                          const Ogre::Vector3 end_pos ) ;
+
+   void
+   RemoveOffMeshConnection ( const OffMeshConnectionId id ) ;
+
 private :
    // Configure the tilecache for building navmesh tiles from the specified input geometry.
    // The inputGeom is mainly used for determining the bounds of the world for which a navmesh
@@ -430,6 +458,11 @@ private :
 
    // Convex Volumes (temporary) added to this geometry.
    std::vector <std::unique_ptr<ConvexVolume>> m_volumes ;
+
+   // Offmesh connections
+   size_t                          NextOffMeshConnectionId = 0 ;
+   std::vector <OffMeshConnection> OffMeshConnections ;
+   bool                            OffMeshConnectionsDirty = true ;
 
    struct TileCacheSetHeader
    {

@@ -641,7 +641,13 @@ DrawNavMeshPoly ( const dtMeshTile        &tile,
 {
    const unsigned int poly_index = static_cast <unsigned int> ( &poly - tile.polys ) ;
 
-   if ( poly.getType () != DT_POLYTYPE_OFFMESH_CONNECTION )
+   if ( poly.getType () == DT_POLYTYPE_OFFMESH_CONNECTION )
+   {
+      auto triangle_list = GenerateTriangleListFromPoly ( tile, poly, poly_index, DebugManager::BROWN ) ;
+
+      return CurrentDebugManager.CreateDebugTrianglePoly ( triangle_list, Ogre::ColourValue::Black ) ;
+   }
+   else
    {
       auto triangle_list = GenerateTriangleListFromPoly ( tile, poly, poly_index, colour ) ;
 
@@ -663,7 +669,18 @@ DrawTilePolys ( const dtPolyRef      base_polyref,
    {
       const dtPoly *poly = &tile.polys [ poly_index ] ;
 
-      if ( poly->getType () != DT_POLYTYPE_OFFMESH_CONNECTION )
+      if ( poly->getType () == DT_POLYTYPE_OFFMESH_CONNECTION )
+      {
+         //std::vector <Ogre::Vector3> points ;
+         //
+         //for ( auto vert_index = 0U ; vert_index < poly->vertCount ; ++vert_index )
+         //{
+         //   points.emplace_back ( poly->verts [ vert_index + 0 ], poly->verts[ vert_index + 1 ], poly->verts[ vert_index + 2 ] ) ;
+         //}
+         //
+         //return CurrentDebugManager.CreateDebugPoly ( points, 0, DebugManager::RED ) ;
+      }
+      else
       {
          Ogre::ColourValue colour = Ogre::ColourValue::Black ;
 
@@ -699,7 +716,25 @@ DrawTilePolyBoundaries ( const dtMeshTile        &tile,
    {
       const dtPoly *poly = &tile.polys [ poly_index ] ;
 
-      if ( poly->getType () != DT_POLYTYPE_OFFMESH_CONNECTION )
+      if ( poly->getType () == DT_POLYTYPE_OFFMESH_CONNECTION )
+      {
+         DebugPolyLine debug_poly_line ;
+         debug_poly_line.Colour = DebugManager::WHITE ;
+
+         std::vector <Ogre::Vector3> points ;
+
+         for ( auto vert_index = 0U ; vert_index < poly->vertCount ; ++vert_index )
+         {
+            const float* poly_start = &tile.verts [ poly->verts [ vert_index ] * 3 ] ;
+
+            points.emplace_back ( poly_start [ 0 ], poly_start [ 1 ], poly_start [ 2 ] ) ;
+         }
+
+         debug_poly_line.Points = std::move ( points ) ;
+
+         debug_poly_list.push_back ( std::move ( debug_poly_line ) ) ;
+      }
+      else
       {
          const dtPolyDetail *poly_detail = &tile.detailMeshes [ poly_index ] ;
 

@@ -1028,6 +1028,29 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
       }
    }
 
+   // https://github.com/recastnavigation/recastnavigation/pull/645/
+   if ( navmesh->hasOffMesh())
+	{
+		int tileNum = navmesh->getMaxTiles();
+		for (int y = 0; y < tileNum; ++y)
+		{
+         const dtNavMesh* const& nm = navmesh;
+         const dtMeshTile* target = nm->getTile ( y );
+
+         if ( !( target->data ) ) continue;
+         if ( target->header->offMeshConCount == 0 ) continue;
+
+			for (int x = 0; x < tileNum; ++x)
+			{
+				if (x == y) continue;
+				const dtMeshTile* tile = nm->getTile(x);
+				if (!(tile->data)) continue;
+            navmesh->connectGlobalOffMeshLinks(tile, target);
+			}
+		}
+	}
+   //
+
    //
    ApplyObstacleFlagsToTile ( *navmesh, *tile, ref ) ;
    //

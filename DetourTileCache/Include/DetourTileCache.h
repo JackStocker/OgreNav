@@ -9,6 +9,8 @@ typedef unsigned int dtObstacleRef;
 
 typedef unsigned int dtCompressedTileRef;
 
+using OffMeshConnectionId = size_t ;
+
 /// Flags for addTile
 enum dtCompressedTileFlags
 {

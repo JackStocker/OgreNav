@@ -220,6 +220,21 @@ RemoveObstacle ( dtObstacleRef ref )
    return TileCache->RemoveObstacle ( ref ) ;
 }
 
+OffMeshConnectionId
+OgreRecast::
+AddOffMeshConnection ( const Ogre::Vector3 start_pos,
+                       const Ogre::Vector3 end_pos )
+{
+   return TileCache->AddOffMeshConnection ( start_pos, end_pos ) ;
+}
+
+void
+OgreRecast::
+RemoveOffMeshConnection ( const OffMeshConnectionId id )
+{
+   TileCache->RemoveOffMeshConnection ( id ) ;
+}
+
 FindPathReturnCode
 OgreRecast::
 FindPath ( float                      *start_pos,

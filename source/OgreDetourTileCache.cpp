@@ -38,86 +38,51 @@
 #include "DetourTileCache.h"
 #include "OgreRecast.h"
 
-/*
-setOffMeshConnections(offMeshConnections: OffMeshConnectionParams[]): void {
-    if (offMeshConnections.length <= 0) return;
-
-    const verts: number[] = [];
-    const rads: number[] = [];
-    const dir: number[] = [];
-    const areas: number[] = [];
-    const flags: number[] = [];
-    const userIds: number[] = [];
-
-    for (let i = 0; i < offMeshConnections.length; i++) {
-      const connection = offMeshConnections[i];
-
-      verts.push(
-        connection.startPosition.x,
-        connection.startPosition.y,
-        connection.startPosition.z
-      );
-      verts.push(
-        connection.endPosition.x,
-        connection.endPosition.y,
-        connection.endPosition.z
-      );
-
-      rads.push(connection.radius);
-      dir.push(connection.bidirectional ? 1 : 0);
-      areas.push(connection.area ?? 0);
-      flags.push(connection.flags ?? 1);
-      userIds.push(connection.userId ?? 1000 + i);
-    }
-
-    Raw.DetourNavMeshBuilder.setOffMeshConnections(
-      this.raw,
-      offMeshConnections.length,
-      verts,
-      rads,
-      dir,
-      areas,
-      flags,
-      userIds
-    );
-  }
-*/
-void SetOffMeshConnections ( dtNavMeshCreateParams* navMeshCreateParams,
-   int offMeshConCount,
-   float* offMeshConVerts,
-   float* offMeshConRad,
-   unsigned char* offMeshConDirs,
-   unsigned char* offMeshConAreas,
-   unsigned short* offMeshConFlags,
-   unsigned int* offMeshConUserId )
+void
+SetOffMeshConnections ( dtNavMeshCreateParams* navMeshCreateParams,
+                        int offMeshConCount,
+                        float* offMeshConVerts,
+                        float* offMeshConRad,
+                        unsigned char* offMeshConDirs,
+                        unsigned char* offMeshConAreas,
+                        unsigned short* offMeshConFlags,
+                        unsigned int* offMeshConUserId )
 {
-    int n = offMeshConCount;
+   int n = offMeshConCount;
 
-    float *verts = new float[n * 3 * 2];
-    memcpy(verts, offMeshConVerts, sizeof(float) * offMeshConCount * 3 * 2);
+   float *verts = new float[n * 3 * 2];
+   memcpy(verts, offMeshConVerts, sizeof(float) * offMeshConCount * 3 * 2);
 
-    float *rads = new float[n];
-    memcpy(rads, offMeshConRad, sizeof(float) * n);
+   float *rads = new float[n];
+   memcpy(rads, offMeshConRad, sizeof(float) * n);
 
-    unsigned char *dirs = new unsigned char[n];
-    memcpy(dirs, offMeshConDirs, sizeof(unsigned char) * n);
+   unsigned char *dirs = new unsigned char[n];
+   memcpy(dirs, offMeshConDirs, sizeof(unsigned char) * n);
 
-    unsigned char *areas = new unsigned char[n];
-    memcpy(areas, offMeshConAreas, sizeof(unsigned char) * n);
+   unsigned char *areas = new unsigned char[n];
+   memcpy(areas, offMeshConAreas, sizeof(unsigned char) * n);
 
-    unsigned short *flags = new unsigned short[n];
-    memcpy(flags, offMeshConFlags, sizeof(unsigned short) * n);
+   unsigned short *flags = new unsigned short[n];
+   memcpy(flags, offMeshConFlags, sizeof(unsigned short) * n);
 
-    unsigned int *userIds = new unsigned int[n];
-    memcpy(userIds, offMeshConUserId, sizeof(unsigned int) * n);
+   unsigned int *userIds = new unsigned int[n];
+   memcpy(userIds, offMeshConUserId, sizeof(unsigned int) * n);
 
-    navMeshCreateParams->offMeshConCount = offMeshConCount;
-    navMeshCreateParams->offMeshConVerts = verts;
-    navMeshCreateParams->offMeshConRad = rads;
-    navMeshCreateParams->offMeshConDir = dirs;
-    navMeshCreateParams->offMeshConAreas = areas;
-    navMeshCreateParams->offMeshConFlags = flags;
-    navMeshCreateParams->offMeshConUserID = userIds;
+   navMeshCreateParams->offMeshConCount  = offMeshConCount ;
+   navMeshCreateParams->offMeshConVerts  = verts ;
+   navMeshCreateParams->offMeshConRad    = rads ;
+   navMeshCreateParams->offMeshConDir    = dirs ;
+   navMeshCreateParams->offMeshConAreas  = areas ;
+   navMeshCreateParams->offMeshConFlags  = flags ;
+   navMeshCreateParams->offMeshConUserID = userIds ;
+}
+
+MeshProcess::
+MeshProcess ( const std::vector <OffMeshConnection> &off_mesh_connections,
+              bool                                  &off_mesh_connections_dirty ) :
+   OffMeshConnections      ( off_mesh_connections ),
+   OffMeshConnectionsDirty ( off_mesh_connections_dirty )
+{
 }
 
 void
@@ -126,107 +91,82 @@ process ( dtNavMeshCreateParams *params,
           unsigned char         *poly_areas,
           unsigned short        *poly_flags )
 {
-    // Update poly flags from areas.
-    for ( auto poly_index = 0 ; poly_index < params->polyCount ; ++poly_index )
-    {
-        if ( poly_areas [ poly_index ] == DT_TILECACHE_WALKABLE_AREA )
-        {
-            poly_areas [ poly_index ] = POLYAREA_GRASS ;
-        }
-
-        if ( ( poly_areas [ poly_index ] == POLYAREA_GRASS ) ||
-             ( poly_areas [ poly_index ] == POLYAREA_SAND ) ||
-             ( poly_areas [ poly_index ] == POLYAREA_ROAD ) )
-        {
-            poly_flags [ poly_index ] |= POLYFLAGS_WALK ;
-        }
-        else if ( poly_areas [ poly_index ] == POLYAREA_WATER )
-        {
-            poly_flags [ poly_index ] |= POLYFLAGS_FLOAT ;
-        }
-        else if ( poly_areas [ poly_index ] == POLYAREA_GATE )
-        {
-           poly_flags [ poly_index ] |= POLYFLAGS_WALK ;
-
-           // All polygons by default allow all players
-           poly_flags [ poly_index ] |= POLYFLAGS_ALL_PLAYERS ;
-
-           // GATE obstacles apply flags to the navmesh polygons to indicate which players can walk through them.
-           // This is done when the tile is re-build, the heightmap is marked with the POLYAREA_GATE area type.
-           // We then appy the specific flags in SetObstacleFlags after the tile build is done.
-           //
-           // We cannot apply the specific flags here as we only have access to the heightmap, not the actual navmesh polygons which haven't been built yet.
-        }
-    }
-
-    /*
-    params->setOffMeshConnections([
+   // Update poly flags from areas.
+   for ( auto poly_index = 0 ; poly_index < params->polyCount ; ++poly_index )
+   {
+      if ( poly_areas [ poly_index ] == DT_TILECACHE_WALKABLE_AREA )
       {
-        startPosition: { x: 0, y: 5, z: 0 },
-        endPosition: { x: 2, y: 0, z: 0 },
-        radius: 0.5,
-        bidirectional: false,
-        area: 0,
-        flags: 1,
-      },
-    ]);
-    */
+         poly_areas [ poly_index ] = POLYAREA_GRASS ;
+      }
 
-    /*
-    /// Off-mesh connection vertices. [(ax, ay, az, bx, by, bz) * #offMeshConCount] [Unit: wu]
-	const float* offMeshConVerts;
-	/// Off-mesh connection radii. [Size: #offMeshConCount] [Unit: wu]
-	const float* offMeshConRad;
-	/// User defined flags assigned to the off-mesh connections. [Size: #offMeshConCount]
-	const unsigned short* offMeshConFlags;
-	/// User defined area ids assigned to the off-mesh connections. [Size: #offMeshConCount]
-	const unsigned char* offMeshConAreas;
-	/// The permitted travel direction of the off-mesh connections. [Size: #offMeshConCount]
-	///
-	/// 0 = Travel only from endpoint A to endpoint B.<br/>
-	/// #DT_OFFMESH_CON_BIDIR = Bidirectional travel.
-	const unsigned char* offMeshConDir;	
-	/// The user defined ids of the off-mesh connection. [Size: #offMeshConCount]
-	const unsigned int* offMeshConUserID;
-	/// The number of off-mesh connections. [Limit: >= 0]
-	int offMeshConCount;
-   */
+      if ( ( poly_areas [ poly_index ] == POLYAREA_GRASS ) ||
+           ( poly_areas [ poly_index ] == POLYAREA_SAND ) ||
+           ( poly_areas [ poly_index ] == POLYAREA_ROAD ) )
+      {
+         poly_flags [ poly_index ] |= POLYFLAGS_WALK ;
+      }
+      else if ( poly_areas [ poly_index ] == POLYAREA_WATER )
+      {
+         poly_flags [ poly_index ] |= POLYFLAGS_FLOAT ;
+      }
+      else if ( poly_areas [ poly_index ] == POLYAREA_GATE )
+      {
+         poly_flags [ poly_index ] |= POLYFLAGS_WALK ;
 
-    /*
-    auto verts = std::vector <float> ();
-    auto rads = std::vector <float> ();
-    auto dir = std::vector <unsigned char> ();
-    auto areas = std::vector <unsigned char> ();
-    auto flags = std::vector <unsigned short> ();
-    auto userIds = std::vector <unsigned int> ();
+         // All polygons by default allow all players
+         poly_flags [ poly_index ] |= POLYFLAGS_ALL_PLAYERS ;
 
-    {
-       verts.push_back (0.0f);
-       verts.push_back (0.0f);
-       verts.push_back (0.0f);
+         // GATE obstacles apply flags to the navmesh polygons to indicate which players can walk through them.
+         // This is done when the tile is re-build, the heightmap is marked with the POLYAREA_GATE area type.
+         // We then appy the specific flags in SetObstacleFlags after the tile build is done.
+         //
+         // We cannot apply the specific flags here as we only have access to the heightmap, not the actual navmesh polygons which haven't been built yet.
+      }
+   }
 
-       verts.push_back (10.0f);
-       verts.push_back (10.0f);
-       verts.push_back (10.0f);
+   if ( OffMeshConnectionsDirty )
+   {
+      const auto min = Ogre::Vector3 ( params->bmin [ 0 ], params->bmin [ 1 ], params->bmin [ 2 ] ) ;
+      const auto max = Ogre::Vector3 ( params->bmax [ 0 ], params->bmax [ 1 ], params->bmax [ 2 ] ) ;
 
-       rads.push_back ( 10.0f );
-       dir.push_back ( true );
-       areas.push_back ( POLYAREA_GRASS );
-       flags.push_back ( POLYFLAGS_WALK );
-       userIds.push_back ( userIds.size () );
-    }
+      verts.clear () ;
+      rads.clear () ;
+      dir.clear () ;
+      areas.clear () ;
+      flags.clear () ;
+      userIds.clear () ;
 
-    SetOffMeshConnections(
-       params,
-       1,
-       verts.data(),
-       rads.data (),
-       dir.data (),
-       areas.data (),
-       flags.data (),
-       userIds.data ()
-    );
-    */
+      const auto mid = min.midPoint ( max ) ;
+
+      for ( const auto &connection : OffMeshConnections )
+      {
+         verts.push_back ( connection.StartPos.x ) ;
+         verts.push_back ( connection.StartPos.y ) ;
+         verts.push_back ( connection.StartPos.z ) ;
+
+         verts.push_back ( connection.EndPos.x ) ;
+         verts.push_back ( connection.EndPos.y ) ;
+         verts.push_back ( connection.EndPos.z ) ;
+
+         rads.push_back ( 1.0f ) ;
+         dir.push_back ( true ) ;
+         areas.push_back ( POLYAREA_GRASS ) ;
+         flags.push_back ( POLYFLAGS_WALK ) ;
+         userIds.push_back ( userIds.size () ) ;
+      }
+
+      OffMeshConnectionsDirty = false ;
+   }
+
+   const auto num_connections = rads.size () ;
+
+   params->offMeshConCount  = num_connections ;
+   params->offMeshConVerts  = verts.data () ;
+   params->offMeshConRad    = rads.data () ;
+   params->offMeshConDir    = dir.data () ;
+   params->offMeshConAreas  = areas.data () ;
+   params->offMeshConFlags  = flags.data () ;
+   params->offMeshConUserID = userIds.data () ;
 }
 
 // Extra padding added to the border size of tiles (together with agent radius)
@@ -327,7 +267,7 @@ OgreDetourTileCache ( OgreRecast         &recast,
 {
     m_talloc  = new LinearAllocator ( 32000 ) ;
     m_tcomp   = new FastLZCompressor ;
-    m_tmproc  = new MeshProcess ;
+    m_tmproc  = new MeshProcess ( OffMeshConnections, OffMeshConnectionsDirty ) ;
     m_navMesh = nullptr ;
 
     // Sanity check on tilesize
@@ -789,9 +729,97 @@ DeleteConvexVolume ( int i )
     //m_volumeCount--;
     //m_volumes[i] = m_volumes[m_volumeCount];
 
-    m_volumes.erase ( m_volumes.begin () + i ) ;
+    m_volumes.erase ( m_volumes.begin () + i ) ; // This invalidates any indices, but we don't actually store or use them anywhere
 
     return true;
+}
+
+#include "DebugManager.h"
+OffMeshConnectionId
+OgreDetourTileCache::
+AddOffMeshConnection ( const Ogre::Vector3 start_pos,
+                       const Ogre::Vector3 end_pos )
+{
+   const auto id = NextOffMeshConnectionId++ ;
+
+   OffMeshConnections.emplace_back ( id, start_pos, end_pos ) ;
+
+   OffMeshConnectionsDirty = true ;
+
+   // Rebuild the touched tiles
+   {
+      // It is possible that the height of the connection don't touch neighbouring tiles, so expand the area to make sure we always rebuild the tiles we want
+      auto min = Ogre::Vector3 { std::min ( start_pos.x, end_pos.x ),
+                                 std::min ( start_pos.y, end_pos.y ),
+                                 std::min ( start_pos.z, end_pos.z ) } ;
+      auto max = Ogre::Vector3 { std::max ( start_pos.x, end_pos.x ),
+                                 std::max ( start_pos.y, end_pos.y ),
+                                 std::max ( start_pos.z, end_pos.z ) } ;
+
+      min -= 5.0f ;
+      max += 5.0f ;
+
+      float min_arr [ 3 ] = { min.x, min.y, min.z } ;
+      float max_arr [ 3 ] = { max.x, max.y, max.z } ;
+
+      int                 ntouched = 0 ;
+      dtCompressedTileRef touched [ DT_MAX_TOUCHED_TILES ] = { 0 } ;
+
+      m_tileCache->queryTiles ( min_arr, max_arr, touched, &ntouched, DT_MAX_TOUCHED_TILES ) ;
+
+      for ( auto touched_tile_index = 0 ; touched_tile_index < ntouched ; ++touched_tile_index )
+      {
+         m_tileCache->buildNavMeshTile ( touched [ touched_tile_index ], m_navMesh ) ;
+      }
+   }
+
+   return id ;
+}
+
+void
+OgreDetourTileCache::
+RemoveOffMeshConnection ( const OffMeshConnectionId id )
+{
+   const auto offmesh_iter = std::ranges::find ( OffMeshConnections, id, &OffMeshConnection::Id ) ;
+
+   if ( offmesh_iter == OffMeshConnections.end () )
+   {
+      return ;
+   }
+
+   const auto start_pos = offmesh_iter->StartPos ;
+   const auto end_pos   = offmesh_iter->EndPos ;
+
+   OffMeshConnections.erase ( offmesh_iter ) ;
+
+   OffMeshConnectionsDirty = true ;
+
+   // Rebuild the touched tiles
+   {
+      // It is possible that the height of the connection don't touch neighbouring tiles, so expand the area to make sure we always rebuild the tiles we want
+      auto min = Ogre::Vector3 { std::min ( start_pos.x, end_pos.x ),
+                                 std::min ( start_pos.y, end_pos.y ),
+                                 std::min ( start_pos.z, end_pos.z ) } ;
+      auto max = Ogre::Vector3 { std::max ( start_pos.x, end_pos.x ),
+                                 std::max ( start_pos.y, end_pos.y ),
+                                 std::max ( start_pos.z, end_pos.z ) } ;
+
+      min -= 5.0f ;
+      max += 5.0f ;
+
+      float min_arr [ 3 ] = { min.x, min.y, min.z } ;
+      float max_arr [ 3 ] = { max.x, max.y, max.z } ;
+
+      int                 ntouched = 0 ;
+      dtCompressedTileRef touched [ DT_MAX_TOUCHED_TILES ] = { 0 } ;
+
+      m_tileCache->queryTiles ( min_arr, max_arr, touched, &ntouched, DT_MAX_TOUCHED_TILES ) ;
+
+      for ( auto touched_tile_index = 0 ; touched_tile_index < ntouched ; ++touched_tile_index )
+      {
+         m_tileCache->buildNavMeshTile ( touched [ touched_tile_index ], m_navMesh ) ;
+      }
+   }
 }
 
 bool
