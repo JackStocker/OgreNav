@@ -94,10 +94,10 @@ enum PolyFlags : unsigned short // Each poly can have multiple flags in a mask w
 //
 struct TerrainArea // Only square for the moment
 {
-   Ogre::Vector3 Centre ;
-   float         Width ;
-   float         Depth ;
-   unsigned int  AreaId ; // Area identifier from OgreRecastDefinitions.h::PolyAreas
+   RealVector3  Centre ;
+   Real         Width ;
+   Real         Depth ;
+   unsigned int AreaId ; // Area identifier from OgreRecastDefinitions.h::PolyAreas
 } ;
 
 using TerrainAreaVector = std::vector <TerrainArea> ;

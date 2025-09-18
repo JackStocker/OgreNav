@@ -63,7 +63,7 @@ public:
    OgreRecast ( const OgreRecastConfigParams &config_params ) ;
 
    void
-   Update ( const float delta_time,
+   Update ( const Real delta_time,
             const bool  until_up_to_date ) ;
 
    bool
@@ -102,17 +102,17 @@ public:
    GetHeightField () const ;
 
    dtObstacleRef
-   AddObstacle ( const Ogre::Vector3  &min,
-                 const Ogre::Vector3  &max,
+   AddObstacle ( const RealVector3    min,
+                 const RealVector3    max,
                  const unsigned char  area_id,
                  const unsigned short flags ) ;
 
    dtObstacleRef
-   AddObstacle ( const Ogre::Vector3  &centre,
-                 const float          width,
-                 const float          depth,
-                 const float          height,
-                 const float          y_rotation, // radians
+   AddObstacle ( const RealVector3   centre,
+                 const Real          width,
+                 const Real          depth,
+                 const Real          height,
+                 const Real          y_rotation, // radians
                  const unsigned char  area_id,
                  const unsigned short flags ) ;
 
@@ -123,8 +123,8 @@ public:
    RemoveObstacle ( dtObstacleRef ref ) ;
 
    OffMeshConnectionId
-   AddOffMeshConnection ( const Ogre::Vector3 start_pos,
-                          const Ogre::Vector3 end_pos ) ;
+   AddOffMeshConnection ( const RealVector3 start_pos,
+                          const RealVector3 end_pos ) ;
 
    void
    RemoveOffMeshConnection ( const OffMeshConnectionId id ) ;
@@ -133,42 +133,42 @@ public:
    // It might fail if the start or end points aren't near any navmesh polygons, or if the path is too long,
    // or it can't make a path, or various other reasons.
    FindPathReturnCode
-   FindPath ( float                      *start_pos,
-              float                      *end_pos,
-              const unsigned int         include_flags,
-              const unsigned int         exclude_flags,
-              std::vector<Ogre::Vector3> &path ) ;
+   FindPath ( Real                     *start_pos,
+              Real                     *end_pos,
+              const unsigned int       include_flags,
+              const unsigned int       exclude_flags,
+              std::vector<RealVector3> &path ) ;
 
    FindPathReturnCode
-   FindPath ( const Ogre::Vector3        &start_pos,
-              const Ogre::Vector3        &end_pos,
-              const unsigned int         include_flags,
-              const unsigned int         exclude_flags,
-              std::vector<Ogre::Vector3> &path ) ;
+   FindPath ( const RealVector3        start_pos,
+              const RealVector3        end_pos,
+              const unsigned int       include_flags,
+              const unsigned int       exclude_flags,
+              std::vector<RealVector3> &path ) ;
 
    FindPathReturnCode
-   CanPathTo ( float              *start_pos,
-               float              *end_pos,
+   CanPathTo ( Real               *start_pos,
+               Real               *end_pos,
                const unsigned int include_flags,
                const unsigned int exclude_flags,
-               Ogre::Vector3      &final_node ) ;
+               RealVector3        &final_node ) ;
 
    FindPathReturnCode
-   CanPathTo ( const Ogre::Vector3 &start_pos,
-               const Ogre::Vector3 &end_pos,
+   CanPathTo ( const RealVector3   start_pos,
+               const RealVector3   end_pos,
                const unsigned int  include_flags,
                const unsigned int  exclude_flags,
-               Ogre::Vector3       &final_node ) ;
+               RealVector3         &final_node ) ;
 
    FindPathReturnCode
-   IsStraightLinePathTo ( float              *start_pos,
-                          float              *end_pos,
+   IsStraightLinePathTo ( Real              *start_pos,
+                          Real              *end_pos,
                           const unsigned int include_flags,
                           const unsigned int exclude_flags ) ;
 
    FindPathReturnCode
-   IsStraightLinePathTo ( const Ogre::Vector3 &start_pos,
-                          const Ogre::Vector3 &end_pos,
+   IsStraightLinePathTo ( const RealVector3   start_pos,
+                          const RealVector3   end_pos,
                           const unsigned int  include_flags,
                           const unsigned int  exclude_flags ) ;
 
@@ -177,27 +177,27 @@ public:
    // Returns true if such a point is found (returned as resultPt), returns false
    // if no point is found. When false is returned, resultPt is not altered.
    bool
-   FindNearestPointOnNavmesh ( const Ogre::Vector3 &position,
+   FindNearestPointOnNavmesh ( const RealVector3   position,
                                const unsigned int  include_flags,
                                const unsigned int  exclude_flags,
-                               Ogre::Vector3       &result_point ) ;
+                               RealVector3         &result_point ) ;
 
    bool
-   FindNearestPolyOnNavmesh ( const Ogre::Vector3 &position,
+   FindNearestPolyOnNavmesh ( const RealVector3   position,
                               const unsigned int  include_flags,
                               const unsigned int  exclude_flags,
-                              Ogre::Vector3       &result_point,
+                              RealVector3         &result_point,
                               dtPolyRef           &result_poly ) ;
 
-   // Convenience function for converting between Ogre::Vector3 and float* used by recast.
+   // Convenience function for converting between Ogre::Vector3 and Real* used by recast.
    static void
-   OgreVect3ToFloatA ( const Ogre::Vector3 &vect,
-                       float               *result ) ;
+   OgreVect3ToReal ( const RealVector3 vect,
+                     Real               *result ) ;
 
-   //  Convenience function for converting between float* used by recast and Ogre::Vector3.
+   //  Convenience function for converting between Real* used by recast and Ogre::Vector3.
    static void
-   FloatAToOgreVect3 ( const float   *vect,
-                       Ogre::Vector3 &result ) ;
+   PositionTAToOgreVect3 ( const Real  *vect,
+                           RealVector3 &result ) ;
 
 private :
    // Configure navbuild parameters for this module
@@ -205,8 +205,8 @@ private :
    ConfigureBuildParameters ( const OgreRecastConfigParams &config_params ) ;
 
    FindPathReturnCode
-   FindPath ( float*             start_pos,
-              float*             end_pos,
+   FindPath ( Real*             start_pos,
+              Real*             end_pos,
               const unsigned int include_flags,
               const unsigned int exclude_flags,
               int                &vertex_count ) ;
@@ -218,7 +218,7 @@ private :
 
    // Path search data caching so we do not need to keep re-creating the arrays
    dtPolyRef PolyPath     [ MAX_EXTENDEDPATHPOLY ] ;
-   float     StraightPath [ MAX_PATHVERT * 3 ] ;
+   Real     StraightPath [ MAX_PATHVERT * 3 ] ;
 
    // The poly filter that will be used for all (random) point and nearest poly searches.
    PlayerFlagQueryFilter QueryFilter ;
@@ -226,7 +226,7 @@ private :
    // The offset size (box) around points used to look for nav polygons.
    // This offset is used in all search for points on the navmesh.
    // The maximum offset that a specified point can be off from the navmesh.
-   float PolySearchBox [ 3 ] ;
+   Real PolySearchBox [ 3 ] ;
 
    bool KeepInterResults = false ;
 } ;

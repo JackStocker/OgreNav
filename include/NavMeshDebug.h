@@ -32,8 +32,8 @@ public :
    SetDrawGrid ( const bool draw_grid ) ;
 
    void
-   RedrawTile ( const std::size_t tile_x,
-                const std::size_t tile_z ) ;
+   RedrawTile ( const size_t tile_x,
+                const size_t tile_z ) ;
 
    void
    RedrawAllTilesUnderObstacles () ;
@@ -109,13 +109,12 @@ private :
    DebugId
    DrawTilePolyBoundaries ( const dtMeshTile        &tile,
                             const Ogre::ColourValue &colour,
-                            const float             line_width,
                             bool                    draw_areas ) ;
 
    DebugId
    DrawTileVertices ( const dtMeshTile        &tile,
                       const Ogre::ColourValue &colour,
-                      const float             half_size ) ;
+                      const Real              half_size ) ;
 
    DebugId
    GeneratorBoxForObstacle ( const dtTileCacheObstacle &obstacle ) ;
@@ -127,9 +126,9 @@ private :
                                   const Ogre::ColourValue &colour ) ;
 
    std::vector <struct DebugPolyTriangle>
-   GenerateDot ( const Ogre::Vector3     &position,
+   GenerateDot ( const RealVector3       &position,
                  const Ogre::ColourValue &colour,
-                 const float             half_size ) ;
+                 const Real              half_size ) ;
 
    DebugManager         &CurrentDebugManager ;
    const OgreRecast     &Recast ;

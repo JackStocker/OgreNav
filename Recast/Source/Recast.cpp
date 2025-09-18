@@ -50,9 +50,9 @@ void rcDelete(T* ptr)
 }
 } // anonymous namespace
 
-float rcSqrt(float x)
+Real rcSqrt(Real x)
 {
-	return sqrtf(x);
+	return fixedmath::sqrt(x);
 }
 
 void rcContext::log(const rcLogCategory category, const char* format, ...)
@@ -284,28 +284,28 @@ rcPolyMeshDetail::rcPolyMeshDetail()
 {
 }
 
-void rcCalcBounds(const float* verts, int numVerts, float* minBounds, float* maxBounds)
+void rcCalcBounds(const Real* verts, int numVerts, Real* minBounds, Real* maxBounds)
 {
 	// Calculate bounding box.
 	rcVcopy(minBounds, verts);
 	rcVcopy(maxBounds, verts);
 	for (int i = 1; i < numVerts; ++i)
 	{
-		const float* v = &verts[i * 3];
+		const Real* v = &verts[i * 3];
 		rcVmin(minBounds, v);
 		rcVmax(maxBounds, v);
 	}
 }
 
-void rcCalcGridSize(const float* minBounds, const float* maxBounds, const float cellSize, int* sizeX, int* sizeZ)
+void rcCalcGridSize(const Real* minBounds, const Real* maxBounds, const Real cellSize, int* sizeX, int* sizeZ)
 {
-	*sizeX = (int)((maxBounds[0] - minBounds[0]) / cellSize + 0.5f);
-	*sizeZ = (int)((maxBounds[2] - minBounds[2]) / cellSize + 0.5f);
+	*sizeX = (int)((maxBounds[0] - minBounds[0]) / cellSize + Real(0.5f));
+	*sizeZ = (int)((maxBounds[2] - minBounds[2]) / cellSize + Real(0.5f));
 }
 
 bool rcCreateHeightfield(rcContext* context, rcHeightfield& heightfield, int sizeX, int sizeZ,
-                         const float* minBounds, const float* maxBounds,
-                         float cellSize, float cellHeight)
+                         const Real* minBounds, const Real* maxBounds,
+                         Real cellSize, Real cellHeight)
 {
 	rcIgnoreUnused(context);
 
@@ -324,26 +324,26 @@ bool rcCreateHeightfield(rcContext* context, rcHeightfield& heightfield, int siz
 	return true;
 }
 
-static void calcTriNormal(const float* v0, const float* v1, const float* v2, float* faceNormal)
+static void calcTriNormal(const Real* v0, const Real* v1, const Real* v2, Real* faceNormal)
 {
-	float e0[3], e1[3];
+	Real e0[3], e1[3];
 	rcVsub(e0, v1, v0);
 	rcVsub(e1, v2, v0);
 	rcVcross(faceNormal, e0, e1);
 	rcVnormalize(faceNormal);
 }
 
-void rcMarkWalkableTriangles(rcContext* context, const float walkableSlopeAngle,
-                             const float* verts, const int numVerts,
+void rcMarkWalkableTriangles(rcContext* context, const Real walkableSlopeAngle,
+                             const Real* verts, const int numVerts,
                              const int* tris, const int numTris,
                              unsigned char* triAreaIDs)
 {
 	rcIgnoreUnused(context);
 	rcIgnoreUnused(numVerts);
 
-	const float walkableThr = cosf(walkableSlopeAngle / 180.0f * RC_PI);
+	const Real walkableThr = fixedmath::cos(walkableSlopeAngle / Real ( 180.0f) * RC_PI);
 
-	float norm[3];
+	Real norm[3];
 
 	for (int i = 0; i < numTris; ++i)
 	{
@@ -357,8 +357,8 @@ void rcMarkWalkableTriangles(rcContext* context, const float walkableSlopeAngle,
 	}
 }
 
-void rcClearUnwalkableTriangles(rcContext* context, const float walkableSlopeAngle,
-                                const float* verts, int numVerts,
+void rcClearUnwalkableTriangles(rcContext* context, const Real walkableSlopeAngle,
+                                const Real* verts, int numVerts,
                                 const int* tris, int numTris,
                                 unsigned char* triAreaIDs)
 {
@@ -366,9 +366,9 @@ void rcClearUnwalkableTriangles(rcContext* context, const float walkableSlopeAng
 	rcIgnoreUnused(numVerts);
 
 	// The minimum Y value for a face normal of a triangle with a walkable slope.
-	const float walkableLimitY = cosf(walkableSlopeAngle / 180.0f * RC_PI);
+	const Real walkableLimitY = fixedmath::cos(walkableSlopeAngle / Real ( 180.0f) * RC_PI);
 
-	float faceNormal[3];
+	Real faceNormal[3];
 	for (int i = 0; i < numTris; ++i)
 	{
 		const int* tri = &tris[i * 3];
@@ -420,7 +420,7 @@ bool rcBuildCompactHeightfield(rcContext* context, const int walkableHeight, con
 	compactHeightfield.maxRegions = 0;
 	rcVcopy(compactHeightfield.bmin, heightfield.bmin);
 	rcVcopy(compactHeightfield.bmax, heightfield.bmax);
-	compactHeightfield.bmax[1] += walkableHeight * heightfield.ch;
+	compactHeightfield.bmax[1] += Real (walkableHeight) * heightfield.ch;
 	compactHeightfield.cs = heightfield.cs;
 	compactHeightfield.ch = heightfield.ch;
 	compactHeightfield.cells = (rcCompactCell*)rcAlloc(sizeof(rcCompactCell) * xSize * zSize, RC_ALLOC_PERM);

@@ -40,7 +40,7 @@
 #include "OgreRecast.h"
 
 // Returns true if 'a' is more lower-left than 'b'.
-bool cmppt(const float* a, const float* b)
+bool cmppt(const Real* a, const Real* b)
 {
     if (a[0] < b[0]) return true;
     if (a[0] > b[0]) return false;
@@ -50,24 +50,24 @@ bool cmppt(const float* a, const float* b)
 }
 
 // Returns true if 'c' is left of line 'a'-'b'.
-bool left(const float* a, const float* b, const float* c)
+bool left(const Real* a, const Real* b, const Real* c)
 {
-    const float u1 = b[0] - a[0];
-    const float v1 = b[2] - a[2];
-    const float u2 = c[0] - a[0];
-    const float v2 = c[2] - a[2];
-    return u1 * v2 - v1 * u2 < 0;
+    const Real u1 = b[0] - a[0];
+    const Real v1 = b[2] - a[2];
+    const Real u2 = c[0] - a[0];
+    const Real v2 = c[2] - a[2];
+    return u1 * v2 - v1 * u2 < Real ( 0);
 }
 
-ConvexVolume::ConvexVolume(Ogre::AxisAlignedBox boundingBox, int new_area, float offset)
+ConvexVolume::ConvexVolume(RealVector3 boundingBoxMin, RealVector3 boundingBoxMax, int new_area, Real offset)
 {
-    Ogre::Vector3 max = boundingBox.getMaximum();
-    Ogre::Vector3 min = boundingBox.getMinimum();
+   RealVector3 max = boundingBoxMax;
+    RealVector3 min = boundingBoxMin;
 
     // Offset bounding box (except height)
-    if(offset > 0.01f) {
-        max = max + offset*Ogre::Vector3(1,0,1);
-        min = min - offset*Ogre::Vector3(1,0,1);
+    if(offset > Real ( 0.01f)) {
+        max = max + offset * RealVector3(1,0,1);
+        min = min - offset * RealVector3(1,0,1);
     }
 
     // Create box verts (in clockwise fashion!!)
@@ -78,8 +78,8 @@ ConvexVolume::ConvexVolume(Ogre::AxisAlignedBox boundingBox, int new_area, float
     nverts = 4; // For rcMarkConvexPoly the verts of the shape need to be in clockwise order
 
     // Set bounding box limits
-    OgreRecast::OgreVect3ToFloatA(min, bmin);
-    OgreRecast::OgreVect3ToFloatA(max, bmax);
+    OgreRecast::OgreVect3ToReal(min, bmin);
+    OgreRecast::OgreVect3ToReal(max, bmax);
 
     // Set height limits
     hmin = min.y;
@@ -89,16 +89,16 @@ ConvexVolume::ConvexVolume(Ogre::AxisAlignedBox boundingBox, int new_area, float
 }
 
 ConvexVolume::
-ConvexVolume ( std::vector <Ogre::Vector3> verts, int new_area, float offset )
+ConvexVolume ( std::vector <RealVector3> verts, int new_area, Real offset )
 {
-   Ogre::Vector3 min ;
-   Ogre::Vector3 max ;
+   RealVector3 min ;
+   RealVector3 max ;
 
    // Offset bounding box (except height)
-   if ( offset > 0.01f )
+   if ( offset > Real ( 0.01f) )
    {
-      max = max + offset * Ogre::Vector3 ( 1, 0, 1 ) ;
-      min = min - offset * Ogre::Vector3 ( 1, 0, 1 ) ;
+      max = max + offset * RealVector3 ( 1, 0, 1 ) ;
+      min = min - offset * RealVector3 ( 1, 0, 1 ) ;
    }
 
    // Create box verts (in clockwise fashion!!)
@@ -109,12 +109,12 @@ ConvexVolume ( std::vector <Ogre::Vector3> verts, int new_area, float offset )
    nverts = 4 ; // For rcMarkConvexPoly the verts of the shape need to be in clockwise order
 
    // Set bounding box limits
-   OgreRecast::OgreVect3ToFloatA ( min, bmin ) ;
-   OgreRecast::OgreVect3ToFloatA ( max, bmax ) ;
+   OgreRecast::OgreVect3ToReal ( min, bmin ) ;
+   OgreRecast::OgreVect3ToReal ( max, bmax ) ;
 
    // Set height limits
-   hmin = min.y ;
-   hmax = max.y ;
+   hmin = Real (min.y) ;
+   hmax = Real (max.y) ;
 
    area = new_area ; // You can choose whatever flag you assing to the poly area
 }

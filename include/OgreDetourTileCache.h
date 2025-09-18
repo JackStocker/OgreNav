@@ -48,8 +48,8 @@ class NavMeshDebug ;
 struct OffMeshConnection
 {
    size_t        Id       = 0 ;
-   Ogre::Vector3 StartPos = Ogre::Vector3::ZERO ;
-   Ogre::Vector3 EndPos   = Ogre::Vector3::ZERO ;
+   RealVector3   StartPos ;
+   RealVector3   EndPos ;
 } ;
 
 // Implementation of the meshProcess callback that detourTileCache
@@ -78,8 +78,8 @@ private :
    const std::vector <OffMeshConnection> &OffMeshConnections ;
    bool                                  &OffMeshConnectionsDirty ;
 
-   std::vector <float>          verts ;
-   std::vector <float>          rads ;
+   std::vector <Real>          verts ;
+   std::vector <Real>          rads ;
    std::vector <unsigned char>  dir ;
    std::vector <unsigned char>  areas ;
    std::vector <unsigned short> flags ;
@@ -349,7 +349,7 @@ public :
    // Navmesh rebuilding happens per tile and only where needed. Tile rebuilding is
    // timesliced.
    void
-   HandleUpdate ( const float delta_time,
+   HandleUpdate ( const Real delta_time,
                   const bool  until_up_to_date ) ; // Continue processing the tile cache obstacles until the entire navmesh is up-to-date
 
    // Add a temporary obstacle to the tilecache (as a deferred request).
@@ -361,17 +361,17 @@ public :
    //
    // If successful returns a reference to the added obstacle.
    dtObstacleRef
-   AddObstacle ( const Ogre::Vector3  &min,
-                 const Ogre::Vector3  &max,
+   AddObstacle ( const RealVector3    min,
+                 const RealVector3    max,
                  const unsigned char  area_id,
                  const unsigned short flags ) ;
 
    dtObstacleRef
-   AddObstacle ( const Ogre::Vector3  &centre,
-                 const float          width,
-                 const float          depth,
-                 const float          height,
-                 const float          y_rotation, // radians
+   AddObstacle ( const RealVector3   centre,
+                 const Real          width,
+                 const Real          depth,
+                 const Real          height,
+                 const Real          y_rotation, // radians
                  const unsigned char  area_id,
                  const unsigned short flags ) ;
 
@@ -391,8 +391,8 @@ public :
    DeleteConvexVolume ( int i ) ;
 
    OffMeshConnectionId
-   AddOffMeshConnection ( const Ogre::Vector3 start_pos,
-                          const Ogre::Vector3 end_pos ) ;
+   AddOffMeshConnection ( const RealVector3 start_pos,
+                          const RealVector3 end_pos ) ;
 
    void
    RemoveOffMeshConnection ( const OffMeshConnectionId id ) ;
@@ -452,7 +452,7 @@ private :
    int          m_maxPolysPerTile ;
    int          m_tileSize ;
    unsigned int MaxNumObstacles ;
-   float        m_cellSize ;
+   Real        m_cellSize ;
    int          m_tw ; // Size of the tile grid (x dimension)
    int          m_th ; // Size of the tile grid (y dimension)
 

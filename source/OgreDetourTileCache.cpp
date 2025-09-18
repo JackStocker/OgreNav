@@ -41,8 +41,8 @@
 void
 SetOffMeshConnections ( dtNavMeshCreateParams* navMeshCreateParams,
                         int offMeshConCount,
-                        float* offMeshConVerts,
-                        float* offMeshConRad,
+                        Real* offMeshConVerts,
+                        Real* offMeshConRad,
                         unsigned char* offMeshConDirs,
                         unsigned char* offMeshConAreas,
                         unsigned short* offMeshConFlags,
@@ -50,11 +50,11 @@ SetOffMeshConnections ( dtNavMeshCreateParams* navMeshCreateParams,
 {
    int n = offMeshConCount;
 
-   float *verts = new float[n * 3 * 2];
-   memcpy(verts, offMeshConVerts, sizeof(float) * offMeshConCount * 3 * 2);
+   Real *verts = new Real[n * 3 * 2];
+   memcpy(verts, offMeshConVerts, sizeof(Real) * offMeshConCount * 3 * 2);
 
-   float *rads = new float[n];
-   memcpy(rads, offMeshConRad, sizeof(float) * n);
+   Real *rads = new Real[n];
+   memcpy(rads, offMeshConRad, sizeof(Real) * n);
 
    unsigned char *dirs = new unsigned char[n];
    memcpy(dirs, offMeshConDirs, sizeof(unsigned char) * n);
@@ -126,17 +126,12 @@ process ( dtNavMeshCreateParams *params,
 
    if ( OffMeshConnectionsDirty )
    {
-      const auto min = Ogre::Vector3 ( params->bmin [ 0 ], params->bmin [ 1 ], params->bmin [ 2 ] ) ;
-      const auto max = Ogre::Vector3 ( params->bmax [ 0 ], params->bmax [ 1 ], params->bmax [ 2 ] ) ;
-
       verts.clear () ;
       rads.clear () ;
       dir.clear () ;
       areas.clear () ;
       flags.clear () ;
       userIds.clear () ;
-
-      const auto mid = min.midPoint ( max ) ;
 
       for ( const auto &connection : OffMeshConnections )
       {
@@ -148,7 +143,7 @@ process ( dtNavMeshCreateParams *params,
          verts.push_back ( connection.EndPos.y ) ;
          verts.push_back ( connection.EndPos.z ) ;
 
-         rads.push_back ( 1.0f ) ;
+         rads.push_back ( Real ( 1.0f ) ) ;
          dir.push_back ( true ) ;
          areas.push_back ( POLYAREA_GRASS ) ;
          flags.push_back ( POLYFLAGS_WALK ) ;
@@ -173,7 +168,7 @@ process ( dtNavMeshCreateParams *params,
 const float BORDER_PADDING = 3 ;
 
 const int TILECACHESET_MAGIC   = 'T'<<24 | 'S'<<16 | 'E'<<8 | 'T' ; //'TSET';
-const int TILECACHESET_VERSION = 2 ;
+const int TILECACHESET_VERSION = 3 ;
 
 template <typename StructType>
 void
@@ -320,12 +315,12 @@ TileCacheBuild ( std::vector<Ogre::ManualObject*> srcMeshes,
    // volumes again, taking a lot of time.
    for ( const auto &area : area_list )
    {
-      const Ogre::Vector3 half_size = Ogre::Vector3 ( area.Width / 2.0f, 50.0f, area.Depth / 2.0f ) ;
-      const Ogre::Vector3 min       = area.Centre - half_size ;
-      const Ogre::Vector3 max       = area.Centre + half_size ;
+      const RealVector3 half_size = RealVector3 ( area.Width / Real(2.0f), Real(50.0f), area.Depth / Real(2.0f) ) ;
+      const RealVector3 min       = area.Centre - half_size ;
+      const RealVector3 max       = area.Centre + half_size ;
 
       // This is limited by the number of convex volumes allowed, we must tile march to expand them and reduce the count
-      AddConvexVolume ( std::make_unique <ConvexVolume> ( Ogre::AxisAlignedBox ( min, max ), area.AreaId ) ) ;
+      AddConvexVolume ( std::make_unique <ConvexVolume> ( min, max, area.AreaId ) ) ;
    }
 
    // Init configuration for specified geometry
@@ -566,8 +561,8 @@ FromBytes ( const std::vector <std::uint8_t> &bytes )
    m_tileSize = m_cfg.tileSize;
 
    // cache bounding box
-   const float* bmin = m_cfg.bmin;
-   const float* bmax = m_cfg.bmax;
+   const Real* bmin = m_cfg.bmin;
+   const Real* bmax = m_cfg.bmax;
 
    m_tileSize = m_cfg.tileSize;
    m_cellSize = m_cfg.cs;
@@ -608,7 +603,7 @@ FromBytes ( const std::vector <std::uint8_t> &bytes )
 
 void
 OgreDetourTileCache::
-HandleUpdate ( const float delta_time,
+HandleUpdate ( const Real delta_time,
                const bool  until_up_to_date ) // Continue processing the tile cache obstacles until the entire navmesh is up-to-date
 {
    if ( ! m_navMesh )
@@ -638,8 +633,8 @@ HandleUpdate ( const float delta_time,
 
 dtObstacleRef
 OgreDetourTileCache::
-AddObstacle ( const Ogre::Vector3  &min,
-              const Ogre::Vector3  &max,
+AddObstacle ( const RealVector3    min,
+              const RealVector3    max,
               const unsigned char  area_id,
               const unsigned short flags )
 {
@@ -647,10 +642,10 @@ AddObstacle ( const Ogre::Vector3  &min,
 
    if ( m_tileCache )
    {
-      float bmin [ 3 ] ;
-      float bmax [ 3 ] ;
-      OgreRecast::OgreVect3ToFloatA ( min, bmin ) ;
-      OgreRecast::OgreVect3ToFloatA ( max, bmax ) ;
+      Real bmin [ 3 ] ;
+      Real bmax [ 3 ] ;
+      OgreRecast::OgreVect3ToReal ( min, bmin ) ;
+      OgreRecast::OgreVect3ToReal ( max, bmax ) ;
 
       m_tileCache->addBoxObstacle ( bmin, bmax, &result, area_id, flags ) ; // No rotation
    }
@@ -660,11 +655,11 @@ AddObstacle ( const Ogre::Vector3  &min,
 
 dtObstacleRef
 OgreDetourTileCache::
-AddObstacle ( const Ogre::Vector3  &centre,
-              const float          width,
-              const float          depth,
-              const float          height,
-              const float          y_rotation, // radians
+AddObstacle ( const RealVector3   centre,
+              const Real          width,
+              const Real          depth,
+              const Real          height,
+              const Real          y_rotation, // radians
               const unsigned char  area_id,
               const unsigned short flags )
 {
@@ -672,10 +667,10 @@ AddObstacle ( const Ogre::Vector3  &centre,
 
    if ( m_tileCache )
    {
-      float centre_position [ 3 ] ;
-      float half_extents [ 3 ] ;
-      OgreRecast::OgreVect3ToFloatA ( centre, centre_position ) ;
-      OgreRecast::OgreVect3ToFloatA ( Ogre::Vector3 ( width, height, depth ) / 2.0f, half_extents ) ;
+      Real centre_position [ 3 ] ;
+      Real half_extents [ 3 ] ;
+      OgreRecast::OgreVect3ToReal ( centre, centre_position ) ;
+      OgreRecast::OgreVect3ToReal ( RealVector3 ( width, height, depth ) / Real(2.0f), half_extents ) ;
 
       m_tileCache->addBoxObstacle ( centre_position, half_extents, y_rotation, &result, area_id, flags ) ;
    }
@@ -737,8 +732,8 @@ DeleteConvexVolume ( int i )
 #include "DebugManager.h"
 OffMeshConnectionId
 OgreDetourTileCache::
-AddOffMeshConnection ( const Ogre::Vector3 start_pos,
-                       const Ogre::Vector3 end_pos )
+AddOffMeshConnection ( const RealVector3 start_pos,
+                       const RealVector3 end_pos )
 {
    const auto id = NextOffMeshConnectionId++ ;
 
@@ -749,18 +744,18 @@ AddOffMeshConnection ( const Ogre::Vector3 start_pos,
    // Rebuild the touched tiles
    {
       // It is possible that the height of the connection don't touch neighbouring tiles, so expand the area to make sure we always rebuild the tiles we want
-      auto min = Ogre::Vector3 { std::min ( start_pos.x, end_pos.x ),
-                                 std::min ( start_pos.y, end_pos.y ),
-                                 std::min ( start_pos.z, end_pos.z ) } ;
-      auto max = Ogre::Vector3 { std::max ( start_pos.x, end_pos.x ),
-                                 std::max ( start_pos.y, end_pos.y ),
-                                 std::max ( start_pos.z, end_pos.z ) } ;
+      auto min = RealVector3 { std::min ( start_pos.x, end_pos.x ),
+                               std::min ( start_pos.y, end_pos.y ),
+                               std::min ( start_pos.z, end_pos.z ) } ;
+      auto max = RealVector3 { std::max ( start_pos.x, end_pos.x ),
+                               std::max ( start_pos.y, end_pos.y ),
+                               std::max ( start_pos.z, end_pos.z ) } ;
 
-      min -= 5.0f ;
-      max += 5.0f ;
+      min -= Real(5.0f) ;
+      max += Real(5.0f) ;
 
-      float min_arr [ 3 ] = { min.x, min.y, min.z } ;
-      float max_arr [ 3 ] = { max.x, max.y, max.z } ;
+      Real min_arr [ 3 ] = { min.x, min.y, min.z } ;
+      Real max_arr [ 3 ] = { max.x, max.y, max.z } ;
 
       int                 ntouched = 0 ;
       dtCompressedTileRef touched [ DT_MAX_TOUCHED_TILES ] = { 0 } ;
@@ -797,18 +792,18 @@ RemoveOffMeshConnection ( const OffMeshConnectionId id )
    // Rebuild the touched tiles
    {
       // It is possible that the height of the connection don't touch neighbouring tiles, so expand the area to make sure we always rebuild the tiles we want
-      auto min = Ogre::Vector3 { std::min ( start_pos.x, end_pos.x ),
-                                 std::min ( start_pos.y, end_pos.y ),
-                                 std::min ( start_pos.z, end_pos.z ) } ;
-      auto max = Ogre::Vector3 { std::max ( start_pos.x, end_pos.x ),
-                                 std::max ( start_pos.y, end_pos.y ),
-                                 std::max ( start_pos.z, end_pos.z ) } ;
+      auto min = RealVector3 { std::min ( start_pos.x, end_pos.x ),
+                               std::min ( start_pos.y, end_pos.y ),
+                               std::min ( start_pos.z, end_pos.z ) } ;
+      auto max = RealVector3 { std::max ( start_pos.x, end_pos.x ),
+                               std::max ( start_pos.y, end_pos.y ),
+                               std::max ( start_pos.z, end_pos.z ) } ;
 
-      min -= 5.0f ;
-      max += 5.0f ;
+      min -= Real(5.0f) ;
+      max += Real(5.0f) ;
 
-      float min_arr [ 3 ] = { min.x, min.y, min.z } ;
-      float max_arr [ 3 ] = { max.x, max.y, max.z } ;
+      Real min_arr [ 3 ] = { min.x, min.y, min.z } ;
+      Real max_arr [ 3 ] = { max.x, max.y, max.z } ;
 
       int                 ntouched = 0 ;
       dtCompressedTileRef touched [ DT_MAX_TOUCHED_TILES ] = { 0 } ;
@@ -839,8 +834,8 @@ ConfigureTileCacheContext ()
     }
 
     // Init cache bounding box
-    const float* bmin = InputGeometry->getMeshBoundsMin();
-    const float* bmax = InputGeometry->getMeshBoundsMax();
+    const Real* bmin = InputGeometry->getMeshBoundsMin();
+    const Real* bmax = InputGeometry->getMeshBoundsMax();
 
     // Navmesh generation params
 
@@ -887,9 +882,9 @@ ConfigureTileCacheContext ()
     // Copy the rest of the parameters from OgreRecast config
     m_tcparams.cs = m_cfg.cs;
     m_tcparams.ch = m_cfg.ch;
-    m_tcparams.walkableHeight = (float) m_cfg.walkableHeight;
-    m_tcparams.walkableRadius = (float) m_cfg.walkableRadius;
-    m_tcparams.walkableClimb = (float) m_cfg.walkableClimb;
+    m_tcparams.walkableHeight = (Real) m_cfg.walkableHeight;
+    m_tcparams.walkableRadius = (Real) m_cfg.walkableRadius;
+    m_tcparams.walkableClimb = (Real) m_cfg.walkableClimb;
     m_tcparams.maxSimplificationError = m_cfg.maxSimplificationError;
 
     return InitTileCache();
@@ -916,7 +911,7 @@ RasterizeTileLayers ( const int     tx,
     FastLZCompressor comp;
     RasterizationContext rc;
 
-    const float* verts = InputGeometry->getVerts();
+    const Real* verts = InputGeometry->getVerts();
     const int nverts = InputGeometry->getVertCount();
 
     // The chunky tri mesh in the inputgeom is a simple spatial subdivision structure that allows to
@@ -926,21 +921,21 @@ RasterizeTileLayers ( const int     tx,
     const rcChunkyTriMesh* chunkyMesh = InputGeometry->getChunkyMesh();
 
     // Tile bounds.
-    const float tcs = m_tileSize * m_cellSize;
+    const Real tcs = Real ( m_tileSize) * Real ( m_cellSize);
 
     rcConfig tcfg;
     memcpy(&tcfg, &m_cfg, sizeof(tcfg));
 
-    tcfg.bmin[0] = m_cfg.bmin[0] + tx*tcs;
+    tcfg.bmin[0] = m_cfg.bmin[0] + Real (tx)*tcs;
     tcfg.bmin[1] = m_cfg.bmin[1];
-    tcfg.bmin[2] = m_cfg.bmin[2] + ty*tcs;
-    tcfg.bmax[0] = m_cfg.bmin[0] + (tx+1)*tcs;
+    tcfg.bmin[2] = m_cfg.bmin[2] + Real ( ty)*tcs;
+    tcfg.bmax[0] = m_cfg.bmin[0] + Real ( tx+1)*tcs;
     tcfg.bmax[1] = m_cfg.bmax[1];
-    tcfg.bmax[2] = m_cfg.bmin[2] + (ty+1)*tcs;
-    tcfg.bmin[0] -= tcfg.borderSize*tcfg.cs;
-    tcfg.bmin[2] -= tcfg.borderSize*tcfg.cs;
-    tcfg.bmax[0] += tcfg.borderSize*tcfg.cs;
-    tcfg.bmax[2] += tcfg.borderSize*tcfg.cs;
+    tcfg.bmax[2] = m_cfg.bmin[2] + Real ( ty+1)*tcs;
+    tcfg.bmin[0] -= Real(tcfg.borderSize)*tcfg.cs;
+    tcfg.bmin[2] -= Real(tcfg.borderSize)*tcfg.cs;
+    tcfg.bmax[0] += Real(tcfg.borderSize)*tcfg.cs;
+    tcfg.bmax[2] += Real(tcfg.borderSize)*tcfg.cs;
 
 
     // This is part of the regular recast navmesh generation pipeline as in OgreRecast::NavMeshBuild()
@@ -970,7 +965,7 @@ RasterizeTileLayers ( const int     tx,
         return 0;
     }
 
-    float tbmin[2], tbmax[2];
+    Real tbmin[2], tbmax[2];
     tbmin[0] = tcfg.bmin[0];
     tbmin[1] = tcfg.bmin[2];
     tbmax[0] = tcfg.bmax[0];
@@ -1141,8 +1136,8 @@ InitTileCache ()
     dtNavMeshParams params;
     memset(&params, 0, sizeof(params));
     rcVcopy(params.orig, m_tcparams.orig);   // Set world-space origin of tile grid
-    params.tileWidth = m_tileSize*m_tcparams.cs;
-    params.tileHeight = m_tileSize*m_tcparams.cs;
+    params.tileWidth = Real ( m_tileSize)*m_tcparams.cs;
+    params.tileHeight = Real ( m_tileSize)*m_tcparams.cs;
     params.maxTiles = m_maxTiles;
     params.maxPolys = m_maxPolysPerTile;
 

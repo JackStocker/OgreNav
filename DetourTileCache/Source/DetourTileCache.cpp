@@ -276,13 +276,13 @@ SetObstacleFlags ( dtNavMesh           &navmesh,
                      if ( poly.getArea () == POLYAREA_GATE )
                      {
                         // Determine if this polygon is under the obstacle by getting the centre of the polygon and checking it is within the obstacle bounds
-                        float poly_middle_x = 0 ;
-                        float poly_middle_y = 0 ;
-                        float poly_middle_z = 0 ;
+                        Real poly_middle_x = Real(0) ;
+                        Real poly_middle_y = Real(0) ;
+                        Real poly_middle_z = Real(0) ;
 
                         for ( auto poly_vertex_index = 0U ; poly_vertex_index < poly.vertCount ; ++poly_vertex_index )
                         {
-                           const float* vertex = &dt_tile->verts [ poly.verts [ poly_vertex_index ] * 3 ] ;
+                           const Real* vertex = &dt_tile->verts [ poly.verts [ poly_vertex_index ] * 3 ] ;
 
                            poly_middle_x += vertex [ 0 ] ;
                            poly_middle_y += vertex [ 1 ] ;
@@ -338,13 +338,13 @@ ApplyObstacleFlagsToTile ( dtNavMesh                 &navmesh,
          if ( poly.getArea () == POLYAREA_GATE )
          {
             // Determine if this polygon is under the obstacle by getting the centre of the polygon and checking it is within the obstacle bounds
-            float poly_middle_x = 0 ;
-            float poly_middle_y = 0 ;
-            float poly_middle_z = 0 ;
+            Real poly_middle_x = Real(0) ;
+            Real poly_middle_y = Real(0) ;
+            Real poly_middle_z = Real(0) ;
 
             for ( auto poly_vertex_index = 0U ; poly_vertex_index < poly.vertCount ; ++poly_vertex_index )
             {
-               const float* vertex = &dt_tile->verts [ poly.verts [ poly_vertex_index ] * 3 ] ;
+               const Real* vertex = &dt_tile->verts [ poly.verts [ poly_vertex_index ] * 3 ] ;
 
                poly_middle_x += vertex [ 0 ] ;
                poly_middle_y += vertex [ 1 ] ;
@@ -493,7 +493,7 @@ dtStatus dtTileCache::removeTile(dtCompressedTileRef ref, unsigned char** data, 
 }
 
 
-dtStatus dtTileCache::addObstacle(const float* pos, const float radius, const float height, dtObstacleRef* result,
+dtStatus dtTileCache::addObstacle(const Real* pos, const Real radius, const Real height, dtObstacleRef* result,
                                   const unsigned char  area_id,
                                   const unsigned short flag )
 {
@@ -535,7 +535,7 @@ dtStatus dtTileCache::addObstacle(const float* pos, const float radius, const fl
    return DT_SUCCESS;
 }
 
-dtStatus dtTileCache::addBoxObstacle(const float* bmin, const float* bmax, dtObstacleRef* result,
+dtStatus dtTileCache::addBoxObstacle(const Real* bmin, const Real* bmax, dtObstacleRef* result,
                                      const unsigned char  area_id,
                                      const unsigned short flag )
 {
@@ -578,7 +578,7 @@ dtStatus dtTileCache::addBoxObstacle(const float* bmin, const float* bmax, dtObs
    return DT_SUCCESS;
 }
 
-dtStatus dtTileCache::addBoxObstacle(const float* center, const float* halfExtents, const float yRadians, dtObstacleRef* result,
+dtStatus dtTileCache::addBoxObstacle(const Real* center, const Real* halfExtents, const Real yRadians, dtObstacleRef* result,
                                      const unsigned char  area_id,
                                      const unsigned short flag )
 {
@@ -603,10 +603,10 @@ dtStatus dtTileCache::addBoxObstacle(const float* center, const float* halfExten
    dtVcopy(ob->orientedBox.center, center);
    dtVcopy(ob->orientedBox.halfExtents, halfExtents);
 
-   float coshalf= cosf(0.5f*yRadians);
-   float sinhalf = sinf(-0.5f*yRadians);
+   Real coshalf = fixedmath::cos( Real ( 0.5f)*yRadians);
+   Real sinhalf = fixedmath::sin( Real ( -0.5f)*yRadians);
    ob->orientedBox.rotAux[0] = coshalf*sinhalf;
-   ob->orientedBox.rotAux[1] = coshalf*coshalf - 0.5f;
+   ob->orientedBox.rotAux[1] = coshalf*coshalf - Real ( 0.5f);
 
    ob->area_id = area_id ;
    ob->flag    = flag ;
@@ -627,9 +627,9 @@ dtStatus dtTileCache::addBoxObstacle(const float* center, const float* halfExten
 // Add polygon obstacle
 dtStatus
 dtTileCache::
-addPolygonObstacle ( const float   *convexHullVertices,
+addPolygonObstacle ( const Real   *convexHullVertices,
                      int           numConvexHullVertices,
-                     const float   height,
+                     const Real   height,
                      dtObstacleRef *result,
                      const unsigned char  area_id,
                      const unsigned short flag )
@@ -700,7 +700,7 @@ dtStatus dtTileCache::removeObstacle(const dtObstacleRef ref)
 }
 
 
-dtStatus dtTileCache::queryTiles(const float* bmin, const float* bmax,
+dtStatus dtTileCache::queryTiles(const Real* bmin, const Real* bmax,
                          dtCompressedTileRef* results, int* resultCount, const int maxResults) const
 {
    const int MAX_TILES = 32;
@@ -708,8 +708,8 @@ dtStatus dtTileCache::queryTiles(const float* bmin, const float* bmax,
 
    int n = 0;
 
-   const float tw = m_params.width * m_params.cs;
-   const float th = m_params.height * m_params.cs;
+   const Real tw = Real(m_params.width) * m_params.cs;
+   const Real th = Real(m_params.height) * m_params.cs;
    const int tx0 = (int)dtMathFloorf((bmin[0]-m_params.orig[0]) / tw);
    const int tx1 = (int)dtMathFloorf((bmax[0]-m_params.orig[0]) / tw);
    const int ty0 = (int)dtMathFloorf((bmin[2]-m_params.orig[2]) / th);
@@ -724,7 +724,7 @@ dtStatus dtTileCache::queryTiles(const float* bmin, const float* bmax,
          for (int i = 0; i < ntiles; ++i)
          {
             const dtCompressedTile* tile = &m_tiles[decodeTileIdTile(tiles[i])];
-            float tbmin[3], tbmax[3];
+            Real tbmin[3], tbmax[3];
             calcTightTileBounds(tile->header, tbmin, tbmax);
 
             if (dtOverlapBounds(bmin,bmax, tbmin,tbmax))
@@ -741,7 +741,7 @@ dtStatus dtTileCache::queryTiles(const float* bmin, const float* bmax,
    return DT_SUCCESS;
 }
 
-dtStatus dtTileCache::update(const float /*dt*/, dtNavMesh* navmesh,
+dtStatus dtTileCache::update(const Real /*dt*/, dtNavMesh* navmesh,
                       bool* upToDate)
 {
    if (m_nupdate == 0)
@@ -1058,18 +1058,18 @@ dtStatus dtTileCache::buildNavMeshTile(const dtCompressedTileRef ref, dtNavMesh*
    return DT_SUCCESS;
 }
 
-void dtTileCache::calcTightTileBounds(const dtTileCacheLayerHeader* header, float* bmin, float* bmax) const
+void dtTileCache::calcTightTileBounds(const dtTileCacheLayerHeader* header, Real* bmin, Real* bmax) const
 {
-   const float cs = m_params.cs;
-   bmin[0] = header->bmin[0] + header->minx*cs;
+   const Real cs = m_params.cs;
+   bmin[0] = header->bmin[0] + Real (header->minx)*cs;
    bmin[1] = header->bmin[1];
-   bmin[2] = header->bmin[2] + header->miny*cs;
-   bmax[0] = header->bmin[0] + (header->maxx+1)*cs;
+   bmin[2] = header->bmin[2] + Real ( header->miny)*cs;
+   bmax[0] = header->bmin[0] + Real ( header->maxx+1)*cs;
    bmax[1] = header->bmax[1];
-   bmax[2] = header->bmin[2] + (header->maxy+1)*cs;
+   bmax[2] = header->bmin[2] + Real ( header->maxy+1)*cs;
 }
 
-void dtTileCache::getObstacleBounds(const struct dtTileCacheObstacle* ob, float* bmin, float* bmax) const
+void dtTileCache::getObstacleBounds(const struct dtTileCacheObstacle* ob, Real* bmin, Real* bmax) const
 {
     if (ob->type == DT_OBSTACLE_CYLINDER)
    {
@@ -1094,7 +1094,7 @@ void dtTileCache::getObstacleBounds(const struct dtTileCacheObstacle* ob, float*
    {
       const dtObstacleOrientedBox &orientedBox = ob->orientedBox;
 
-      float maxr = 1.41f*dtMax(orientedBox.halfExtents[0], orientedBox.halfExtents[2]);
+      Real maxr = Real ( 1.41f)*dtMax(orientedBox.halfExtents[0], orientedBox.halfExtents[2]);
       bmin[0] = orientedBox.center[0] - maxr;
       bmax[0] = orientedBox.center[0] + maxr;
       bmin[1] = orientedBox.center[1] - orientedBox.halfExtents[1];

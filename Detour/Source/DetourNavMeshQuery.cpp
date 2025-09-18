@@ -16,7 +16,6 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#include <float.h>
 #include <string.h>
 #include "DetourNavMeshQuery.h"
 #include "DetourNavMesh.h"
@@ -65,7 +64,7 @@ dtQueryFilter::dtQueryFilter() :
 	m_excludeFlags(0)
 {
 	for (int i = 0; i < DT_MAX_AREAS; ++i)
-		m_areaCost[i] = 1.0f;
+		m_areaCost[i] = Real ( 1.0f);
 }
 
 #ifdef DT_VIRTUAL_QUERYFILTER
@@ -76,7 +75,7 @@ bool dtQueryFilter::passFilter(const dtPolyRef /*ref*/,
 	return (poly->flags & m_includeFlags) != 0 && (poly->flags & m_excludeFlags) == 0;
 }
 
-float dtQueryFilter::getCost(const float* pa, const float* pb,
+Real dtQueryFilter::getCost(const Real* pa, const Real* pb,
 							 const dtPolyRef /*prevRef*/, const dtMeshTile* /*prevTile*/, const dtPoly* /*prevPoly*/,
 							 const dtPolyRef /*curRef*/, const dtMeshTile* /*curTile*/, const dtPoly* curPoly,
 							 const dtPolyRef /*nextRef*/, const dtMeshTile* /*nextTile*/, const dtPoly* /*nextPoly*/) const
@@ -91,7 +90,7 @@ inline bool dtQueryFilter::passFilter(const dtPolyRef /*ref*/,
 	return (poly->flags & m_includeFlags) != 0 && (poly->flags & m_excludeFlags) == 0;
 }
 
-inline float dtQueryFilter::getCost(const float* pa, const float* pb,
+inline PositionT dtQueryFilter::getCost(const PositionT* pa, const PositionT* pb,
 									const dtPolyRef /*prevRef*/, const dtMeshTile* /*prevTile*/, const dtPoly* /*prevPoly*/,
 									const dtPolyRef /*curRef*/, const dtMeshTile* /*curTile*/, const dtPoly* curPoly,
 									const dtPolyRef /*nextRef*/, const dtMeshTile* /*nextTile*/, const dtPoly* /*nextPoly*/) const
@@ -101,10 +100,10 @@ inline float dtQueryFilter::getCost(const float* pa, const float* pb,
 #endif	
 
 // Default value
-//static const float H_SCALE = 0.999f; // Search heuristic scale.
+//static const Real H_SCALE = 0.999f; // Search heuristic scale.
 
 // 2 performs approx 40% faster (200ms -> 140ms for 1000 random paths) than the default value above on the NavMesh::RunTest on the Roundabout map.
-static const float H_SCALE = 2.0f ; // Search heuristic scale.
+static const Real H_SCALE = Real ( 2.0f ) ; // Search heuristic scale.
 
 dtNavMeshQuery* dtAllocNavMeshQuery()
 {
@@ -226,8 +225,8 @@ dtStatus dtNavMeshQuery::init(const dtNavMesh* nav, const int maxNodes)
 	return DT_SUCCESS;
 }
 
-dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, float (*frand)(),
-										 dtPolyRef* randomRef, float* randomPt) const
+dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, Real (*frand)(),
+										 dtPolyRef* randomRef, Real* randomPt) const
 {
 	dtAssert(m_nav);
 
@@ -236,16 +235,16 @@ dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, float (*fr
 
 	// Randomly pick one tile. Assume that all tiles cover roughly the same area.
 	const dtMeshTile* tile = 0;
-	float tsum = 0.0f;
+	Real tsum = Real ( 0.0f);
 	for (int i = 0; i < m_nav->getMaxTiles(); i++)
 	{
 		const dtMeshTile* t = m_nav->getTile(i);
 		if (!t || !t->header) continue;
 		
 		// Choose random tile using reservoir sampling.
-		const float area = 1.0f; // Could be tile area too.
+		const Real area = Real ( 1.0f); // Could be tile area too.
 		tsum += area;
-		const float u = frand();
+		const Real u = frand();
 		if (u*tsum <= area)
 			tile = t;
 	}
@@ -257,7 +256,7 @@ dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, float (*fr
 	dtPolyRef polyRef = 0;
 	const dtPolyRef base = m_nav->getPolyRefBase(tile);
 
-	float areaSum = 0.0f;
+	Real areaSum = Real ( 0.0f);
 	for (int i = 0; i < tile->header->polyCount; ++i)
 	{
 		const dtPoly* p = &tile->polys[i];
@@ -270,18 +269,18 @@ dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, float (*fr
 			continue;
 
 		// Calc area of the polygon.
-		float polyArea = 0.0f;
+		Real polyArea = Real ( 0.0f);
 		for (int j = 2; j < p->vertCount; ++j)
 		{
-			const float* va = &tile->verts[p->verts[0]*3];
-			const float* vb = &tile->verts[p->verts[j-1]*3];
-			const float* vc = &tile->verts[p->verts[j]*3];
+			const Real* va = &tile->verts[p->verts[0]*3];
+			const Real* vb = &tile->verts[p->verts[j-1]*3];
+			const Real* vc = &tile->verts[p->verts[j]*3];
 			polyArea += dtTriArea2D(va,vb,vc);
 		}
 
 		// Choose random polygon weighted by area, using reservoir sampling.
 		areaSum += polyArea;
-		const float u = frand();
+		const Real u = frand();
 		if (u*areaSum <= polyArea)
 		{
 			poly = p;
@@ -293,9 +292,9 @@ dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, float (*fr
 		return DT_FAILURE;
 
 	// Randomly pick point on polygon.
-	const float* v = &tile->verts[poly->verts[0]*3];
-	float verts[3*DT_VERTS_PER_POLYGON];
-	float areas[DT_VERTS_PER_POLYGON];
+	const Real* v = &tile->verts[poly->verts[0]*3];
+	Real verts[3*DT_VERTS_PER_POLYGON];
+	Real areas[DT_VERTS_PER_POLYGON];
 	dtVcopy(&verts[0*3],v);
 	for (int j = 1; j < poly->vertCount; ++j)
 	{
@@ -303,10 +302,10 @@ dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, float (*fr
 		dtVcopy(&verts[j*3],v);
 	}
 	
-	const float s = frand();
-	const float t = frand();
+	const Real s = frand();
+	const Real t = frand();
 	
-	float pt[3];
+	Real pt[3];
 	dtRandomPointInConvexPoly(verts, poly->vertCount, areas, s, t, pt);
 	
 	closestPointOnPoly(polyRef, pt, pt, NULL);
@@ -317,9 +316,9 @@ dtStatus dtNavMeshQuery::findRandomPoint(const dtQueryFilter* filter, float (*fr
 	return DT_SUCCESS;
 }
 
-dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const float* centerPos, const float maxRadius,
-													 const dtQueryFilter* filter, float (*frand)(),
-													 dtPolyRef* randomRef, float* randomPt) const
+dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const Real* centerPos, const Real maxRadius,
+													 const dtQueryFilter* filter, Real (*frand)(),
+													 dtPolyRef* randomRef, Real* randomPt) const
 {
 	dtAssert(m_nav);
 	dtAssert(m_nodePool);
@@ -328,7 +327,7 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const f
 	// Validate input
 	if (!m_nav->isValidPolyRef(startRef) ||
 		!centerPos || !dtVisfinite(centerPos) ||
-		maxRadius < 0 || !dtMathIsfinite(maxRadius) ||
+		maxRadius < Real ( 0 ) || !dtMathIsfinite(maxRadius) ||
 		!filter || !frand || !randomRef || !randomPt)
 	{
 		return DT_FAILURE | DT_INVALID_PARAM;
@@ -346,16 +345,16 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const f
 	dtNode* startNode = m_nodePool->getNode(startRef);
 	dtVcopy(startNode->pos, centerPos);
 	startNode->pidx = 0;
-	startNode->cost = 0;
-	startNode->total = 0;
+	startNode->cost = Real ( 0);
+	startNode->total = Real ( 0);
 	startNode->id = startRef;
 	startNode->flags = DT_NODE_OPEN;
 	m_openList->push(startNode);
 	
 	dtStatus status = DT_SUCCESS;
 	
-	const float radiusSqr = dtSqr(maxRadius);
-	float areaSum = 0.0f;
+	const Real radiusSqr = dtSqr(maxRadius);
+	Real areaSum = Real ( 0.0f);
 
 	const dtMeshTile* randomTile = 0;
 	const dtPoly* randomPoly = 0;
@@ -378,17 +377,17 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const f
 		if (bestPoly->getType() == DT_POLYTYPE_GROUND)
 		{
 			// Calc area of the polygon.
-			float polyArea = 0.0f;
+			Real polyArea = Real ( 0.0f);
 			for (int j = 2; j < bestPoly->vertCount; ++j)
 			{
-				const float* va = &bestTile->verts[bestPoly->verts[0]*3];
-				const float* vb = &bestTile->verts[bestPoly->verts[j-1]*3];
-				const float* vc = &bestTile->verts[bestPoly->verts[j]*3];
+				const Real* va = &bestTile->verts[bestPoly->verts[0]*3];
+				const Real* vb = &bestTile->verts[bestPoly->verts[j-1]*3];
+				const Real* vc = &bestTile->verts[bestPoly->verts[j]*3];
 				polyArea += dtTriArea2D(va,vb,vc);
 			}
 			// Choose random polygon weighted by area, using reservoir sampling.
 			areaSum += polyArea;
-			const float u = frand();
+			const Real u = frand();
 			if (u*areaSum <= polyArea)
 			{
 				randomTile = bestTile;
@@ -425,13 +424,13 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const f
 				continue;
 			
 			// Find edge and calc distance to the edge.
-			float va[3], vb[3];
+			Real va[3], vb[3];
 			if (!getPortalPoints(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, va, vb))
 				continue;
 			
 			// If the circle is not touching the next polygon, skip it.
-			float tseg;
-			float distSqr = dtDistancePtSegSqr2D(centerPos, va, vb, tseg);
+			Real tseg;
+			Real distSqr = dtDistancePtSegSqr2D(centerPos, va, vb, tseg);
 			if (distSqr > radiusSqr)
 				continue;
 			
@@ -447,9 +446,9 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const f
 			
 			// Cost
 			if (neighbourNode->flags == 0)
-				dtVlerp(neighbourNode->pos, va, vb, 0.5f);
+				dtVlerp(neighbourNode->pos, va, vb, Real ( 0.5f));
 			
-			const float total = bestNode->total + dtVdist(bestNode->pos, neighbourNode->pos);
+			const Real total = bestNode->total + dtVdist(bestNode->pos, neighbourNode->pos);
 			
 			// The node is already in open list and the new result is worse, skip.
 			if ((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total)
@@ -476,9 +475,9 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const f
 		return DT_FAILURE;
 	
 	// Randomly pick point on polygon.
-	const float* v = &randomTile->verts[randomPoly->verts[0]*3];
-	float verts[3*DT_VERTS_PER_POLYGON];
-	float areas[DT_VERTS_PER_POLYGON];
+	const Real* v = &randomTile->verts[randomPoly->verts[0]*3];
+	Real verts[3*DT_VERTS_PER_POLYGON];
+	Real areas[DT_VERTS_PER_POLYGON];
 	dtVcopy(&verts[0*3],v);
 	for (int j = 1; j < randomPoly->vertCount; ++j)
 	{
@@ -486,10 +485,10 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const f
 		dtVcopy(&verts[j*3],v);
 	}
 	
-	const float s = frand();
-	const float t = frand();
+	const Real s = frand();
+	const Real t = frand();
 	
-	float pt[3];
+	Real pt[3];
 	dtRandomPointInConvexPoly(verts, randomPoly->vertCount, areas, s, t, pt);
 	
 	closestPointOnPoly(randomPolyRef, pt, pt, NULL);
@@ -511,7 +510,7 @@ dtStatus dtNavMeshQuery::findRandomPointAroundCircle(dtPolyRef startRef, const f
 ///
 /// See closestPointOnPolyBoundary() for a limited but faster option.
 ///
-dtStatus dtNavMeshQuery::closestPointOnPoly(dtPolyRef ref, const float* pos, float* closest, bool* posOverPoly) const
+dtStatus dtNavMeshQuery::closestPointOnPoly(dtPolyRef ref, const Real* pos, Real* closest, bool* posOverPoly) const
 {
 	dtAssert(m_nav);
 	if (!m_nav->isValidPolyRef(ref) ||
@@ -536,7 +535,7 @@ dtStatus dtNavMeshQuery::closestPointOnPoly(dtPolyRef ref, const float* pos, flo
 /// 
 /// @p pos does not have to be within the bounds of the polybon or the navigation mesh.
 /// 
-dtStatus dtNavMeshQuery::closestPointOnPolyBoundary(dtPolyRef ref, const float* pos, float* closest) const
+dtStatus dtNavMeshQuery::closestPointOnPolyBoundary(dtPolyRef ref, const Real* pos, Real* closest) const
 {
 	dtAssert(m_nav);
 	
@@ -549,9 +548,9 @@ dtStatus dtNavMeshQuery::closestPointOnPolyBoundary(dtPolyRef ref, const float* 
 		return DT_FAILURE | DT_INVALID_PARAM;
 	
 	// Collect vertices.
-	float verts[DT_VERTS_PER_POLYGON*3];	
-	float edged[DT_VERTS_PER_POLYGON];
-	float edget[DT_VERTS_PER_POLYGON];
+	Real verts[DT_VERTS_PER_POLYGON*3];	
+	Real edged[DT_VERTS_PER_POLYGON];
+	Real edget[DT_VERTS_PER_POLYGON];
 	int nv = 0;
 	for (int i = 0; i < (int)poly->vertCount; ++i)
 	{
@@ -568,7 +567,7 @@ dtStatus dtNavMeshQuery::closestPointOnPolyBoundary(dtPolyRef ref, const float* 
 	else
 	{
 		// Point is outside the polygon, dtClamp to nearest edge.
-		float dmin = edged[0];
+		Real dmin = edged[0];
 		int imin = 0;
 		for (int i = 1; i < nv; ++i)
 		{
@@ -578,8 +577,8 @@ dtStatus dtNavMeshQuery::closestPointOnPolyBoundary(dtPolyRef ref, const float* 
 				imin = i;
 			}
 		}
-		const float* va = &verts[imin*3];
-		const float* vb = &verts[((imin+1)%nv)*3];
+		const Real* va = &verts[imin*3];
+		const Real* vb = &verts[((imin+1)%nv)*3];
 		dtVlerp(closest, va, vb, edget[imin]);
 	}
 	
@@ -591,7 +590,7 @@ dtStatus dtNavMeshQuery::closestPointOnPolyBoundary(dtPolyRef ref, const float* 
 /// Will return #DT_FAILURE | DT_INVALID_PARAM if the provided position is outside the xz-bounds 
 /// of the polygon.
 /// 
-dtStatus dtNavMeshQuery::getPolyHeight(dtPolyRef ref, const float* pos, float* height) const
+dtStatus dtNavMeshQuery::getPolyHeight(dtPolyRef ref, const Real* pos, Real* height) const
 {
 	dtAssert(m_nav);
 
@@ -608,9 +607,9 @@ dtStatus dtNavMeshQuery::getPolyHeight(dtPolyRef ref, const float* pos, float* h
 	// case it here.
 	if (poly->getType() == DT_POLYTYPE_OFFMESH_CONNECTION)
 	{
-		const float* v0 = &tile->verts[poly->verts[0]*3];
-		const float* v1 = &tile->verts[poly->verts[1]*3];
-		float t;
+		const Real* v0 = &tile->verts[poly->verts[0]*3];
+		const Real* v1 = &tile->verts[poly->verts[1]*3];
+		Real t;
 		dtDistancePtSegSqr2D(pos, v0, v1, t);
 		if (height)
 			*height = v0[1] + (v1[1] - v0[1])*t;
@@ -626,22 +625,22 @@ dtStatus dtNavMeshQuery::getPolyHeight(dtPolyRef ref, const float* pos, float* h
 class dtFindNearestPolyQuery : public dtPolyQuery
 {
 	const dtNavMeshQuery* m_query;
-	const float* m_center;
-	float m_nearestDistanceSqr;
+	const Real* m_center;
+	Real m_nearestDistanceSqr;
 	dtPolyRef m_nearestRef;
-	float m_nearestPoint[3];
+	Real m_nearestPoint[3];
 	bool m_overPoly;
 
 public:
-	dtFindNearestPolyQuery(const dtNavMeshQuery* query, const float* center)
-		: m_query(query), m_center(center), m_nearestDistanceSqr(FLT_MAX), m_nearestRef(0), m_nearestPoint(), m_overPoly(false)
+	dtFindNearestPolyQuery(const dtNavMeshQuery* query, const Real* center)
+		: m_query(query), m_center(center), m_nearestDistanceSqr(std::numeric_limits<Real>::max()), m_nearestRef(0), m_nearestPoint(), m_overPoly(false)
 	{
 	}
 
 	virtual ~dtFindNearestPolyQuery();
 
 	dtPolyRef nearestRef() const { return m_nearestRef; }
-	const float* nearestPoint() const { return m_nearestPoint; }
+	const Real* nearestPoint() const { return m_nearestPoint; }
 	bool isOverPoly() const { return m_overPoly; }
 
 	void process(const dtMeshTile* tile, dtPoly** polys, dtPolyRef* refs, int count)
@@ -651,10 +650,10 @@ public:
 		for (int i = 0; i < count; ++i)
 		{
 			dtPolyRef ref = refs[i];
-			float closestPtPoly[3];
-			float diff[3];
+			Real closestPtPoly[3];
+			Real diff[3];
 			bool posOverPoly = false;
-			float d;
+			Real d;
 			m_query->closestPointOnPoly(ref, m_center, closestPtPoly, &posOverPoly);
 
 			// If a point is directly over a polygon and closer than
@@ -663,7 +662,7 @@ public:
 			if (posOverPoly)
 			{
 				d = dtAbs(diff[1]) - tile->header->walkableClimb;
-				d = d > 0 ? d*d : 0;			
+				d = d > Real ( 0 )? d*d : Real ( 0);
 			}
 			else
 			{
@@ -693,18 +692,18 @@ dtFindNearestPolyQuery::~dtFindNearestPolyQuery()
 /// return #DT_SUCCESS, but @p nearestRef will be zero. So if in doubt, check 
 /// @p nearestRef before using @p nearestPt.
 ///
-dtStatus dtNavMeshQuery::findNearestPoly(const float* center, const float* halfExtents,
+dtStatus dtNavMeshQuery::findNearestPoly(const Real* center, const Real* halfExtents,
 										 const dtQueryFilter* filter,
-										 dtPolyRef* nearestRef, float* nearestPt) const
+										 dtPolyRef* nearestRef, Real* nearestPt) const
 {
 	return findNearestPoly(center, halfExtents, filter, nearestRef, nearestPt, NULL);
 }
 
 // If center and nearestPt point to an equal position, isOverPoly will be true;
 // however there's also a special case of climb height inside the polygon (see dtFindNearestPolyQuery)
-dtStatus dtNavMeshQuery::findNearestPoly(const float* center, const float* halfExtents,
+dtStatus dtNavMeshQuery::findNearestPoly(const Real* center, const Real* halfExtents,
 										 const dtQueryFilter* filter,
-										 dtPolyRef* nearestRef, float* nearestPt, bool* isOverPoly) const
+										 dtPolyRef* nearestRef, Real* nearestPt, bool* isOverPoly) const
 {
 	dtAssert(m_nav);
 
@@ -732,7 +731,7 @@ dtStatus dtNavMeshQuery::findNearestPoly(const float* center, const float* halfE
 	return DT_SUCCESS;
 }
 
-void dtNavMeshQuery::queryPolygonsInTile(const dtMeshTile* tile, const float* qmin, const float* qmax,
+void dtNavMeshQuery::queryPolygonsInTile(const dtMeshTile* tile, const Real* qmin, const Real* qmax,
 										 const dtQueryFilter* filter, dtPolyQuery* query) const
 {
 	dtAssert(m_nav);
@@ -745,19 +744,19 @@ void dtNavMeshQuery::queryPolygonsInTile(const dtMeshTile* tile, const float* qm
 	{
 		const dtBVNode* node = &tile->bvTree[0];
 		const dtBVNode* end = &tile->bvTree[tile->header->bvNodeCount];
-		const float* tbmin = tile->header->bmin;
-		const float* tbmax = tile->header->bmax;
-		const float qfac = tile->header->bvQuantFactor;
+		const Real* tbmin = tile->header->bmin;
+		const Real* tbmax = tile->header->bmax;
+		const Real qfac = tile->header->bvQuantFactor;
 
 		// Calculate quantized box
 		unsigned short bmin[3], bmax[3];
 		// dtClamp query box to world box.
-		float minx = dtClamp(qmin[0], tbmin[0], tbmax[0]) - tbmin[0];
-		float miny = dtClamp(qmin[1], tbmin[1], tbmax[1]) - tbmin[1];
-		float minz = dtClamp(qmin[2], tbmin[2], tbmax[2]) - tbmin[2];
-		float maxx = dtClamp(qmax[0], tbmin[0], tbmax[0]) - tbmin[0];
-		float maxy = dtClamp(qmax[1], tbmin[1], tbmax[1]) - tbmin[1];
-		float maxz = dtClamp(qmax[2], tbmin[2], tbmax[2]) - tbmin[2];
+		Real minx = dtClamp(qmin[0], tbmin[0], tbmax[0]) - tbmin[0];
+		Real miny = dtClamp(qmin[1], tbmin[1], tbmax[1]) - tbmin[1];
+		Real minz = dtClamp(qmin[2], tbmin[2], tbmax[2]) - tbmin[2];
+		Real maxx = dtClamp(qmax[0], tbmin[0], tbmax[0]) - tbmin[0];
+		Real maxy = dtClamp(qmax[1], tbmin[1], tbmax[1]) - tbmin[1];
+		Real maxz = dtClamp(qmax[2], tbmin[2], tbmax[2]) - tbmin[2];
 		// Quantize
 		bmin[0] = (unsigned short)(qfac * minx) & 0xfffe;
 		bmin[1] = (unsigned short)(qfac * miny) & 0xfffe;
@@ -804,7 +803,7 @@ void dtNavMeshQuery::queryPolygonsInTile(const dtMeshTile* tile, const float* qm
 	}
 	else
 	{
-		float bmin[3], bmax[3];
+		Real bmin[3], bmax[3];
 		const dtPolyRef base = m_nav->getPolyRefBase(tile);
 		for (int i = 0; i < tile->header->polyCount; ++i)
 		{
@@ -817,7 +816,7 @@ void dtNavMeshQuery::queryPolygonsInTile(const dtMeshTile* tile, const float* qm
 			if (!filter->passFilter(ref, tile, p))
 				continue;
 			// Calc polygon bounds.
-			const float* v = &tile->verts[p->verts[0]*3];
+			const Real* v = &tile->verts[p->verts[0]*3];
 			dtVcopy(bmin, v);
 			dtVcopy(bmax, v);
 			for (int j = 1; j < p->vertCount; ++j)
@@ -899,7 +898,7 @@ dtCollectPolysQuery::~dtCollectPolysQuery()
 /// be filled to capacity. The method of choosing which polygons from the 
 /// full set are included in the partial result set is undefined.
 ///
-dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* halfExtents,
+dtStatus dtNavMeshQuery::queryPolygons(const Real* center, const Real* halfExtents,
 									   const dtQueryFilter* filter,
 									   dtPolyRef* polys, int* polyCount, const int maxPolys) const
 {
@@ -923,7 +922,7 @@ dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* halfExt
 /// passed to this function. The dtPolyQuery::process function is invoked multiple
 /// times until all overlapping polygons have been processed.
 ///
-dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* halfExtents,
+dtStatus dtNavMeshQuery::queryPolygons(const Real* center, const Real* halfExtents,
 									   const dtQueryFilter* filter, dtPolyQuery* query) const
 {
 	dtAssert(m_nav);
@@ -935,7 +934,7 @@ dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* halfExt
 		return DT_FAILURE | DT_INVALID_PARAM;
 	}
 
-	float bmin[3], bmax[3];
+	Real bmin[3], bmax[3];
 	dtVsub(bmin, center, halfExtents);
 	dtVadd(bmax, center, halfExtents);
 	
@@ -974,7 +973,7 @@ dtStatus dtNavMeshQuery::queryPolygons(const float* center, const float* halfExt
 /// (The y-values impact the result.)
 ///
 dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
-								  const float* startPos, const float* endPos,
+								  const Real* startPos, const Real* endPos,
 								  const dtQueryFilter* filter,
 								  dtPolyRef* path, int* pathCount, const int maxPath) const
 {
@@ -1009,14 +1008,14 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 	dtNode* startNode = m_nodePool->getNode(startRef);
 	dtVcopy(startNode->pos, startPos);
 	startNode->pidx = 0;
-	startNode->cost = 0;
+	startNode->cost = Real ( 0);
 	startNode->total = dtVdist(startPos, endPos) * H_SCALE;
 	startNode->id = startRef;
 	startNode->flags = DT_NODE_OPEN;
 	m_openList->push(startNode);
 	
 	dtNode* lastBestNode = startNode;
-	float lastBestNodeCost = startNode->total;
+	Real lastBestNodeCost = startNode->total;
 	
 	bool outOfNodes = false;
 	
@@ -1089,29 +1088,29 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 			}
 
 			// Calculate cost and heuristic.
-			float cost = 0;
-			float heuristic = 0;
+			Real cost = Real ( 0);
+			Real heuristic = Real ( 0);
 			
 			// Special case for last node.
 			if (neighbourRef == endRef)
 			{
 				// Cost
-				const float curCost = filter->getCost(bestNode->pos, neighbourNode->pos,
+				const Real curCost = filter->getCost(bestNode->pos, neighbourNode->pos,
 													  parentRef, parentTile, parentPoly,
 													  bestRef, bestTile, bestPoly,
 													  neighbourRef, neighbourTile, neighbourPoly);
-				const float endCost = filter->getCost(neighbourNode->pos, endPos,
+				const Real endCost = filter->getCost(neighbourNode->pos, endPos,
 													  bestRef, bestTile, bestPoly,
 													  neighbourRef, neighbourTile, neighbourPoly,
 													  0, 0, 0);
 				
 				cost = bestNode->cost + curCost + endCost;
-				heuristic = 0;
+				heuristic = Real ( 0);
 			}
 			else
 			{
 				// Cost
-				const float curCost = filter->getCost(bestNode->pos, neighbourNode->pos,
+				const Real curCost = filter->getCost(bestNode->pos, neighbourNode->pos,
 													  parentRef, parentTile, parentPoly,
 													  bestRef, bestTile, bestPoly,
 													  neighbourRef, neighbourTile, neighbourPoly);
@@ -1119,7 +1118,7 @@ dtStatus dtNavMeshQuery::findPath(dtPolyRef startRef, dtPolyRef endRef,
 				heuristic = dtVdist(neighbourNode->pos, endPos)*H_SCALE;
 			}
 
-			const float total = cost + heuristic;
+			const Real total = cost + heuristic;
 			
 			// The node is already in open list and the new result is worse, skip.
 			if ((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total)
@@ -1217,7 +1216,7 @@ dtStatus dtNavMeshQuery::getPathToNode(dtNode* endNode, dtPolyRef* path, int* pa
 /// path query.
 ///
 dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef,
-											const float* startPos, const float* endPos,
+											const Real* startPos, const Real* endPos,
 											const dtQueryFilter* filter, const unsigned int options)
 {
 	dtAssert(m_nav);
@@ -1235,7 +1234,7 @@ dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef
 		dtVcopy(m_query.endPos, endPos);
 	m_query.filter = filter;
 	m_query.options = options;
-	m_query.raycastLimitSqr = FLT_MAX;
+	m_query.raycastLimitSqr = std::numeric_limits<Real>::max();
 	
 	// Validate input
 	if (!m_nav->isValidPolyRef(startRef) || !m_nav->isValidPolyRef(endRef) ||
@@ -1251,7 +1250,7 @@ dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef
 		// limiting to several times the character radius yields nice results. It is not sensitive 
 		// so it is enough to compute it from the first tile.
 		const dtMeshTile* tile = m_nav->getTileByRef(startRef);
-		float agentRadius = tile->header->walkableRadius;
+		Real agentRadius = tile->header->walkableRadius;
 		m_query.raycastLimitSqr = dtSqr(agentRadius * DT_RAY_CAST_LIMIT_PROPORTIONS);
 	}
 
@@ -1267,7 +1266,7 @@ dtStatus dtNavMeshQuery::initSlicedFindPath(dtPolyRef startRef, dtPolyRef endRef
 	dtNode* startNode = m_nodePool->getNode(startRef);
 	dtVcopy(startNode->pos, startPos);
 	startNode->pidx = 0;
-	startNode->cost = 0;
+	startNode->cost = Real ( 0);
 	startNode->total = dtVdist(startPos, endPos) * H_SCALE;
 	startNode->id = startRef;
 	startNode->flags = DT_NODE_OPEN;
@@ -1401,16 +1400,16 @@ dtStatus dtNavMeshQuery::updateSlicedFindPath(const int maxIter, int* doneIters)
 			}
 			
 			// Calculate cost and heuristic.
-			float cost = 0;
-			float heuristic = 0;
+			Real cost = Real ( 0);
+			Real heuristic = Real ( 0);
 			
 			// raycast parent
 			bool foundShortCut = false;
-			rayHit.pathCost = rayHit.t = 0;
+			rayHit.pathCost = rayHit.t = Real ( 0);
 			if (tryLOS)
 			{
 				raycast(parentRef, parentNode->pos, neighbourNode->pos, m_query.filter, DT_RAYCAST_USE_COSTS, &rayHit, grandpaRef);
-				foundShortCut = rayHit.t >= 1.0f;
+				foundShortCut = rayHit.t >= Real ( 1.0f);
 			}
 
 			// update move cost
@@ -1422,7 +1421,7 @@ dtStatus dtNavMeshQuery::updateSlicedFindPath(const int maxIter, int* doneIters)
 			else
 			{
 				// No shortcut found.
-				const float curCost = m_query.filter->getCost(bestNode->pos, neighbourNode->pos,
+				const Real curCost = m_query.filter->getCost(bestNode->pos, neighbourNode->pos,
 															  parentRef, parentTile, parentPoly,
 															bestRef, bestTile, bestPoly,
 															neighbourRef, neighbourTile, neighbourPoly);
@@ -1432,20 +1431,20 @@ dtStatus dtNavMeshQuery::updateSlicedFindPath(const int maxIter, int* doneIters)
 			// Special case for last node.
 			if (neighbourRef == m_query.endRef)
 			{
-				const float endCost = m_query.filter->getCost(neighbourNode->pos, m_query.endPos,
+				const Real endCost = m_query.filter->getCost(neighbourNode->pos, m_query.endPos,
 															  bestRef, bestTile, bestPoly,
 															  neighbourRef, neighbourTile, neighbourPoly,
 															  0, 0, 0);
 				
 				cost = cost + endCost;
-				heuristic = 0;
+				heuristic = Real ( 0);
 			}
 			else
 			{
 				heuristic = dtVdist(neighbourNode->pos, m_query.endPos)*H_SCALE;
 			}
 			
-			const float total = cost + heuristic;
+			const Real total = cost + heuristic;
 			
 			// The node is already in open list and the new result is worse, skip.
 			if ((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total)
@@ -1552,7 +1551,7 @@ dtStatus dtNavMeshQuery::finalizeSlicedFindPath(dtPolyRef* path, int* pathCount,
 			dtStatus status = 0;
 			if (node->flags & DT_NODE_PARENT_DETACHED)
 			{
-				float t, normal[3];
+				Real t, normal[3];
 				int m;
 				status = raycast(node->id, node->pos, next->pos, m_query.filter, &t, normal, path+n, &m, maxPath-n);
 				n += m;
@@ -1653,7 +1652,7 @@ dtStatus dtNavMeshQuery::finalizeSlicedFindPathPartial(const dtPolyRef* existing
 			dtStatus status = 0;
 			if (node->flags & DT_NODE_PARENT_DETACHED)
 			{
-				float t, normal[3];
+				Real t, normal[3];
 				int m;
 				status = raycast(node->id, node->pos, next->pos, m_query.filter, &t, normal, path+n, &m, maxPath-n);
 				n += m;
@@ -1689,8 +1688,8 @@ dtStatus dtNavMeshQuery::finalizeSlicedFindPathPartial(const dtPolyRef* existing
 }
 
 
-dtStatus dtNavMeshQuery::appendVertex(const float* pos, const unsigned char flags, const dtPolyRef ref,
-									  float* straightPath, unsigned char* straightPathFlags, dtPolyRef* straightPathRefs,
+dtStatus dtNavMeshQuery::appendVertex(const Real* pos, const unsigned char flags, const dtPolyRef ref,
+									  Real* straightPath, unsigned char* straightPathFlags, dtPolyRef* straightPathRefs,
 									  int* straightPathCount, const int maxStraightPath) const
 {
 	if ((*straightPathCount) > 0 && dtVequal(&straightPath[((*straightPathCount)-1)*3], pos))
@@ -1726,11 +1725,11 @@ dtStatus dtNavMeshQuery::appendVertex(const float* pos, const unsigned char flag
 	return DT_IN_PROGRESS;
 }
 
-dtStatus dtNavMeshQuery::appendPortals(const int startIdx, const int endIdx, const float* endPos, const dtPolyRef* path,
-									  float* straightPath, unsigned char* straightPathFlags, dtPolyRef* straightPathRefs,
+dtStatus dtNavMeshQuery::appendPortals(const int startIdx, const int endIdx, const Real* endPos, const dtPolyRef* path,
+									  Real* straightPath, unsigned char* straightPathFlags, dtPolyRef* straightPathRefs,
 									  int* straightPathCount, const int maxStraightPath, const int options) const
 {
-	const float* startPos = &straightPath[(*straightPathCount-1)*3];
+	const Real* startPos = &straightPath[(*straightPathCount-1)*3];
 	// Append or update last vertex
 	dtStatus stat = 0;
 	for (int i = startIdx; i < endIdx; i++)
@@ -1748,7 +1747,7 @@ dtStatus dtNavMeshQuery::appendPortals(const int startIdx, const int endIdx, con
 		if (dtStatusFailed(m_nav->getTileAndPolyByRef(to, &toTile, &toPoly)))
 			return DT_FAILURE | DT_INVALID_PARAM;
 		
-		float left[3], right[3];
+		Real left[3], right[3];
 		if (dtStatusFailed(getPortalPoints(from, fromPoly, fromTile, to, toPoly, toTile, left, right)))
 			break;
 	
@@ -1760,10 +1759,10 @@ dtStatus dtNavMeshQuery::appendPortals(const int startIdx, const int endIdx, con
 		}
 		
 		// Append intersection
-		float s,t;
+		Real s,t;
 		if (dtIntersectSegSeg2D(startPos, endPos, left, right, s, t))
 		{
-			float pt[3];
+			Real pt[3];
 			dtVlerp(pt, left,right, t);
 
 			stat = appendVertex(pt, 0, path[i+1],
@@ -1793,9 +1792,9 @@ dtStatus dtNavMeshQuery::appendPortals(const int startIdx, const int endIdx, con
 /// they will be filled as far as possible from the start toward the end 
 /// position.
 ///
-dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* endPos,
+dtStatus dtNavMeshQuery::findStraightPath(const Real* startPos, const Real* endPos,
 										  const dtPolyRef* path, const int pathSize,
-										  float* straightPath, unsigned char* straightPathFlags, dtPolyRef* straightPathRefs,
+										  Real* straightPath, unsigned char* straightPathFlags, dtPolyRef* straightPathRefs,
 										  int* straightPathCount, const int maxStraightPath, const int options) const
 {
 	dtAssert(m_nav);
@@ -1816,11 +1815,11 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 	dtStatus stat = 0;
 	
 	// TODO: Should this be callers responsibility?
-	float closestStartPos[3];
+	Real closestStartPos[3];
 	if (dtStatusFailed(closestPointOnPolyBoundary(path[0], startPos, closestStartPos)))
 		return DT_FAILURE | DT_INVALID_PARAM;
 
-	float closestEndPos[3];
+	Real closestEndPos[3];
 	if (dtStatusFailed(closestPointOnPolyBoundary(path[pathSize-1], endPos, closestEndPos)))
 		return DT_FAILURE | DT_INVALID_PARAM;
 	
@@ -1833,7 +1832,7 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 	
 	if (pathSize > 1)
 	{
-		float portalApex[3], portalLeft[3], portalRight[3];
+		Real portalApex[3], portalLeft[3], portalRight[3];
 		dtVcopy(portalApex, closestStartPos);
 		dtVcopy(portalLeft, portalApex);
 		dtVcopy(portalRight, portalApex);
@@ -1849,7 +1848,7 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 		
 		for (int i = 0; i < pathSize; ++i)
 		{
-			float left[3], right[3];
+			Real left[3], right[3];
 			unsigned char toType;
 			
 			if (i+1 < pathSize)
@@ -1888,8 +1887,8 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 				// If starting really close the portal, advance.
 				if (i == 0)
 				{
-					float t;
-					if (dtDistancePtSegSqr2D(portalApex, left, right, t) < dtSqr(0.001f))
+					Real t;
+					if (dtDistancePtSegSqr2D(portalApex, left, right, t) < dtSqr( Real ( 0.001f)))
 						continue;
 				}
 			}
@@ -1903,9 +1902,9 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 			}
 			
 			// Right vertex.
-			if (dtTriArea2D(portalApex, portalRight, right) <= 0.0f)
+			if (dtTriArea2D(portalApex, portalRight, right) <= Real ( 0.0f))
 			{
-				if (dtVequal(portalApex, portalRight) || dtTriArea2D(portalApex, portalLeft, right) > 0.0f)
+				if (dtVequal(portalApex, portalRight) || dtTriArea2D(portalApex, portalLeft, right) > Real ( 0.0f))
 				{
 					dtVcopy(portalRight, right);
 					rightPolyRef = (i+1 < pathSize) ? path[i+1] : 0;
@@ -1954,9 +1953,9 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 			}
 			
 			// Left vertex.
-			if (dtTriArea2D(portalApex, portalLeft, left) >= 0.0f)
+			if (dtTriArea2D(portalApex, portalLeft, left) >= Real ( 0.0f))
 			{
-				if (dtVequal(portalApex, portalLeft) || dtTriArea2D(portalApex, portalRight, left) < 0.0f)
+				if (dtVequal(portalApex, portalLeft) || dtTriArea2D(portalApex, portalRight, left) < Real ( 0.0f))
 				{
 					dtVcopy(portalLeft, left);
 					leftPolyRef = (i+1 < pathSize) ? path[i+1] : 0;
@@ -2044,9 +2043,9 @@ dtStatus dtNavMeshQuery::findStraightPath(const float* startPos, const float* en
 /// be filled as far as possible from the start position toward the end 
 /// position.
 ///
-dtStatus dtNavMeshQuery::moveAlongSurface(dtPolyRef startRef, const float* startPos, const float* endPos,
+dtStatus dtNavMeshQuery::moveAlongSurface(dtPolyRef startRef, const Real* startPos, const Real* endPos,
 										  const dtQueryFilter* filter,
-										  float* resultPos, dtPolyRef* visited, int* visitedCount, const int maxVisitedSize) const
+										  Real* resultPos, dtPolyRef* visited, int* visitedCount, const int maxVisitedSize) const
 {
 	dtAssert(m_nav);
 	dtAssert(m_tinyNodePool);
@@ -2075,23 +2074,23 @@ dtStatus dtNavMeshQuery::moveAlongSurface(dtPolyRef startRef, const float* start
 	
 	dtNode* startNode = m_tinyNodePool->getNode(startRef);
 	startNode->pidx = 0;
-	startNode->cost = 0;
-	startNode->total = 0;
+	startNode->cost = Real ( 0);
+	startNode->total = Real ( 0);
 	startNode->id = startRef;
 	startNode->flags = DT_NODE_CLOSED;
 	stack[nstack++] = startNode;
 	
-	float bestPos[3];
-	float bestDist = FLT_MAX;
+	Real bestPos[3];
+	Real bestDist = std::numeric_limits< Real>::max();
 	dtNode* bestNode = 0;
 	dtVcopy(bestPos, startPos);
 	
 	// Search constraints
-	float searchPos[3], searchRadSqr;
-	dtVlerp(searchPos, startPos, endPos, 0.5f);
-	searchRadSqr = dtSqr(dtVdist(startPos, endPos)/2.0f + 0.001f);
+	Real searchPos[3], searchRadSqr;
+	dtVlerp(searchPos, startPos, endPos, Real ( 0.5f));
+	searchRadSqr = dtSqr(dtVdist(startPos, endPos)/ Real ( 2.0f) + Real ( 0.001f));
 	
-	float verts[DT_VERTS_PER_POLYGON*3];
+	Real verts[DT_VERTS_PER_POLYGON*3];
 	
 	while (nstack)
 	{
@@ -2165,10 +2164,10 @@ dtStatus dtNavMeshQuery::moveAlongSurface(dtPolyRef startRef, const float* start
 			if (!nneis)
 			{
 				// Wall edge, calc distance.
-				const float* vj = &verts[j*3];
-				const float* vi = &verts[i*3];
-				float tseg;
-				const float distSqr = dtDistancePtSegSqr2D(endPos, vj, vi, tseg);
+				const Real* vj = &verts[j*3];
+				const Real* vi = &verts[i*3];
+				Real tseg;
+				const Real distSqr = dtDistancePtSegSqr2D(endPos, vj, vi, tseg);
 				if (distSqr < bestDist)
 				{
                     // Update nearest distance.
@@ -2191,10 +2190,10 @@ dtStatus dtNavMeshQuery::moveAlongSurface(dtPolyRef startRef, const float* start
 					
 					// Skip the link if it is too far from search constraint.
 					// TODO: Maybe should use getPortalPoints(), but this one is way faster.
-					const float* vj = &verts[j*3];
-					const float* vi = &verts[i*3];
-					float tseg;
-					float distSqr = dtDistancePtSegSqr2D(searchPos, vj, vi, tseg);
+					const Real* vj = &verts[j*3];
+					const Real* vi = &verts[i*3];
+					Real tseg;
+					Real distSqr = dtDistancePtSegSqr2D(searchPos, vj, vi, tseg);
 					if (distSqr > searchRadSqr)
 						continue;
 					
@@ -2248,7 +2247,7 @@ dtStatus dtNavMeshQuery::moveAlongSurface(dtPolyRef startRef, const float* start
 }
 
 
-dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, dtPolyRef to, float* left, float* right,
+dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, dtPolyRef to, Real* left, Real* right,
 										 unsigned char& fromType, unsigned char& toType) const
 {
 	dtAssert(m_nav);
@@ -2271,7 +2270,7 @@ dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, dtPolyRef to, float* le
 // Returns portal points between two polygons.
 dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, const dtPoly* fromPoly, const dtMeshTile* fromTile,
 										 dtPolyRef to, const dtPoly* toPoly, const dtMeshTile* toTile,
-										 float* left, float* right) const
+										 Real* left, Real* right) const
 {
 	// Find the link that points to the 'to' polygon.
 	const dtLink* link = 0;
@@ -2331,9 +2330,9 @@ dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, const dtPoly* fromPoly,
 		// Unpack portal limits.
 		if (link->bmin != 0 || link->bmax != 255)
 		{
-			const float s = 1.0f/255.0f;
-			const float tmin = link->bmin*s;
-			const float tmax = link->bmax*s;
+			const Real s = Real ( 1.0f)/ Real ( 255.0f);
+			const Real tmin = Real(link->bmin)*s;
+			const Real tmax = Real(link->bmax)*s;
 			dtVlerp(left, &fromTile->verts[v0*3], &fromTile->verts[v1*3], tmin);
 			dtVlerp(right, &fromTile->verts[v0*3], &fromTile->verts[v1*3], tmax);
 		}
@@ -2343,28 +2342,28 @@ dtStatus dtNavMeshQuery::getPortalPoints(dtPolyRef from, const dtPoly* fromPoly,
 }
 
 // Returns edge mid point between two polygons.
-dtStatus dtNavMeshQuery::getEdgeMidPoint(dtPolyRef from, dtPolyRef to, float* mid) const
+dtStatus dtNavMeshQuery::getEdgeMidPoint(dtPolyRef from, dtPolyRef to, Real* mid) const
 {
-	float left[3], right[3];
+	Real left[3], right[3];
 	unsigned char fromType, toType;
 	if (dtStatusFailed(getPortalPoints(from, to, left,right, fromType, toType)))
 		return DT_FAILURE | DT_INVALID_PARAM;
-	mid[0] = (left[0]+right[0])*0.5f;
-	mid[1] = (left[1]+right[1])*0.5f;
-	mid[2] = (left[2]+right[2])*0.5f;
+	mid[0] = (left[0]+right[0])*Real(0.5f);
+	mid[1] = (left[1]+right[1])*Real(0.5f);
+	mid[2] = (left[2]+right[2])*Real(0.5f);
 	return DT_SUCCESS;
 }
 
 dtStatus dtNavMeshQuery::getEdgeMidPoint(dtPolyRef from, const dtPoly* fromPoly, const dtMeshTile* fromTile,
 										 dtPolyRef to, const dtPoly* toPoly, const dtMeshTile* toTile,
-										 float* mid) const
+										 Real* mid) const
 {
-	float left[3], right[3];
+	Real left[3], right[3];
 	if (dtStatusFailed(getPortalPoints(from, fromPoly, fromTile, to, toPoly, toTile, left, right)))
 		return DT_FAILURE | DT_INVALID_PARAM;
-	mid[0] = (left[0]+right[0])*0.5f;
-	mid[1] = (left[1]+right[1])*0.5f;
-	mid[2] = (left[2]+right[2])*0.5f;
+	mid[0] = (left[0]+right[0])*Real(0.5f);
+	mid[1] = (left[1]+right[1])*Real(0.5f);
+	mid[2] = (left[2]+right[2])*Real(0.5f);
 	return DT_SUCCESS;
 }
 
@@ -2408,9 +2407,9 @@ dtStatus dtNavMeshQuery::getEdgeMidPoint(dtPolyRef from, const dtPoly* fromPoly,
 /// (no wall hit), meaning it reached the end position. This is one example of why
 /// this method is meant for short distance checks.
 ///
-dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, const float* endPos,
+dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const Real* startPos, const Real* endPos,
 								 const dtQueryFilter* filter,
-								 float* t, float* hitNormal, dtPolyRef* path, int* pathCount, const int maxPath) const
+								 Real* t, Real* hitNormal, dtPolyRef* path, int* pathCount, const int maxPath) const
 {
 	dtRaycastHit hit;
 	hit.path = path;
@@ -2466,7 +2465,7 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 /// (no wall hit), meaning it reached the end position. This is one example of why
 /// this method is meant for short distance checks.
 ///
-dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, const float* endPos,
+dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const Real* startPos, const Real* endPos,
 								 const dtQueryFilter* filter, const unsigned int options,
 								 dtRaycastHit* hit, dtPolyRef prevRef) const
 {
@@ -2475,9 +2474,9 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 	if (!hit)
 		return DT_FAILURE | DT_INVALID_PARAM;
 
-	hit->t = 0;
+	hit->t = Real ( 0);
 	hit->pathCount = 0;
-	hit->pathCost = 0;
+	hit->pathCost = Real ( 0);
 
 	// Validate input
 	if (!m_nav->isValidPolyRef(startRef) ||
@@ -2489,13 +2488,13 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 		return DT_FAILURE | DT_INVALID_PARAM;
 	}
 	
-	float dir[3], curPos[3], lastPos[3];
-	float verts[DT_VERTS_PER_POLYGON*3+3];	
+	Real dir[3], curPos[3], lastPos[3];
+	Real verts[DT_VERTS_PER_POLYGON*3+3];	
 	int n = 0;
 
 	dtVcopy(curPos, startPos);
 	dtVsub(dir, endPos, startPos);
-	dtVset(hit->hitNormal, 0, 0, 0);
+	dtVset(hit->hitNormal, Real ( 0), Real ( 0), Real ( 0));
 
 	dtStatus status = DT_SUCCESS;
 
@@ -2525,7 +2524,7 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 			nv++;
 		}
 		
-		float tmin, tmax;
+		Real tmin, tmax;
 		int segMin, segMax;
 		if (!dtIntersectSegmentPoly2D(startPos, endPos, verts, nv, tmin, tmax, segMin, segMax))
 		{
@@ -2549,7 +2548,8 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 		// Ray end is completely inside the polygon.
 		if (segMax == -1)
 		{
-			hit->t = FLT_MAX;
+			hit->t = std::numeric_limits< Real>::max();
+			//hit->t = std::numeric_limits<float>::max ();
 			hit->pathCount = n;
 			
 			// add the cost
@@ -2601,20 +2601,20 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 			// Check for partial edge links.
 			const int v0 = poly->verts[link->edge];
 			const int v1 = poly->verts[(link->edge+1) % poly->vertCount];
-			const float* left = &tile->verts[v0*3];
-			const float* right = &tile->verts[v1*3];
+			const Real* left = &tile->verts[v0*3];
+			const Real* right = &tile->verts[v1*3];
 			
 			// Check that the intersection lies inside the link portal.
 			if (link->side == 0 || link->side == 4)
 			{
 				// Calculate link size.
-				const float s = 1.0f/255.0f;
-				float lmin = left[2] + (right[2] - left[2])*(link->bmin*s);
-				float lmax = left[2] + (right[2] - left[2])*(link->bmax*s);
+				const Real s = Real ( 1.0f)/ Real ( 255.0f);
+				Real lmin = left[2] + (right[2] - left[2])*(Real(link->bmin)*s);
+				Real lmax = left[2] + (right[2] - left[2])*(Real(link->bmax)*s);
 				if (lmin > lmax) dtSwap(lmin, lmax);
 				
 				// Find Z intersection.
-				float z = startPos[2] + (endPos[2]-startPos[2])*tmax;
+				Real z = startPos[2] + (endPos[2]-startPos[2])*tmax;
 				if (z >= lmin && z <= lmax)
 				{
 					nextRef = link->ref;
@@ -2624,13 +2624,13 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 			else if (link->side == 2 || link->side == 6)
 			{
 				// Calculate link size.
-				const float s = 1.0f/255.0f;
-				float lmin = left[0] + (right[0] - left[0])*(link->bmin*s);
-				float lmax = left[0] + (right[0] - left[0])*(link->bmax*s);
+				const Real s = Real ( 1.0f)/ Real ( 255.0f);
+				Real lmin = left[0] + (right[0] - left[0])*(Real(link->bmin)*s);
+				Real lmax = left[0] + (right[0] - left[0])*(Real(link->bmax)*s);
 				if (lmin > lmax) dtSwap(lmin, lmax);
 				
 				// Find X intersection.
-				float x = startPos[0] + (endPos[0]-startPos[0])*tmax;
+				Real x = startPos[0] + (endPos[0]-startPos[0])*tmax;
 				if (x >= lmin && x <= lmax)
 				{
 					nextRef = link->ref;
@@ -2646,12 +2646,12 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 			// and correct the height (since the raycast moves in 2d)
 			dtVcopy(lastPos, curPos);
 			dtVmad(curPos, startPos, dir, hit->t);
-			float* e1 = &verts[segMax*3];
-			float* e2 = &verts[((segMax+1)%nv)*3];
-			float eDir[3], diff[3];
+			Real* e1 = &verts[segMax*3];
+			Real* e2 = &verts[((segMax+1)%nv)*3];
+			Real eDir[3], diff[3];
 			dtVsub(eDir, e2, e1);
 			dtVsub(diff, curPos, e1);
-			float s = dtSqr(eDir[0]) > dtSqr(eDir[2]) ? diff[0] / eDir[0] : diff[2] / eDir[2];
+			Real s = dtSqr(eDir[0]) > dtSqr(eDir[2]) ? diff[0] / eDir[0] : diff[2] / eDir[2];
 			curPos[1] = e1[1] + eDir[1] * s;
 
 			hit->pathCost += filter->getCost(lastPos, curPos, prevRef, prevTile, prevPoly, curRef, tile, poly, nextRef, nextTile, nextPoly);
@@ -2664,12 +2664,12 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 			// Calculate hit normal.
 			const int a = segMax;
 			const int b = segMax+1 < nv ? segMax+1 : 0;
-			const float* va = &verts[a*3];
-			const float* vb = &verts[b*3];
-			const float dx = vb[0] - va[0];
-			const float dz = vb[2] - va[2];
+			const Real* va = &verts[a*3];
+			const Real* vb = &verts[b*3];
+			const Real dx = vb[0] - va[0];
+			const Real dz = vb[2] - va[2];
 			hit->hitNormal[0] = dz;
-			hit->hitNormal[1] = 0;
+			hit->hitNormal[1] = Real ( 0);
 			hit->hitNormal[2] = -dx;
 			dtVnormalize(hit->hitNormal);
 			
@@ -2720,9 +2720,9 @@ dtStatus dtNavMeshQuery::raycast(dtPolyRef startRef, const float* startPos, cons
 /// If the result arrays are to small to hold the entire result set, they will be 
 /// filled to capacity.
 /// 
-dtStatus dtNavMeshQuery::findPolysAroundCircle(dtPolyRef startRef, const float* centerPos, const float radius,
+dtStatus dtNavMeshQuery::findPolysAroundCircle(dtPolyRef startRef, const Real* centerPos, const Real radius,
 											   const dtQueryFilter* filter,
-											   dtPolyRef* resultRef, dtPolyRef* resultParent, float* resultCost,
+											   dtPolyRef* resultRef, dtPolyRef* resultParent, Real* resultCost,
 											   int* resultCount, const int maxResult) const
 {
 	dtAssert(m_nav);
@@ -2736,7 +2736,7 @@ dtStatus dtNavMeshQuery::findPolysAroundCircle(dtPolyRef startRef, const float* 
 
 	if (!m_nav->isValidPolyRef(startRef) ||
 		!centerPos || !dtVisfinite(centerPos) ||
-		radius < 0 || !dtMathIsfinite(radius) ||
+		radius < Real ( 0) || !dtMathIsfinite (radius) ||
 		!filter || maxResult < 0)
 	{
 		return DT_FAILURE | DT_INVALID_PARAM;
@@ -2748,8 +2748,8 @@ dtStatus dtNavMeshQuery::findPolysAroundCircle(dtPolyRef startRef, const float* 
 	dtNode* startNode = m_nodePool->getNode(startRef);
 	dtVcopy(startNode->pos, centerPos);
 	startNode->pidx = 0;
-	startNode->cost = 0;
-	startNode->total = 0;
+	startNode->cost = Real ( 0);
+	startNode->total = Real ( 0);
 	startNode->id = startRef;
 	startNode->flags = DT_NODE_OPEN;
 	m_openList->push(startNode);
@@ -2758,7 +2758,7 @@ dtStatus dtNavMeshQuery::findPolysAroundCircle(dtPolyRef startRef, const float* 
 	
 	int n = 0;
 	
-	const float radiusSqr = dtSqr(radius);
+	const Real radiusSqr = dtSqr(radius);
 	
 	while (!m_openList->empty())
 	{
@@ -2815,13 +2815,13 @@ dtStatus dtNavMeshQuery::findPolysAroundCircle(dtPolyRef startRef, const float* 
 				continue;
 			
 			// Find edge and calc distance to the edge.
-			float va[3], vb[3];
+			Real va[3], vb[3];
 			if (!getPortalPoints(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, va, vb))
 				continue;
 			
 			// If the circle is not touching the next polygon, skip it.
-			float tseg;
-			float distSqr = dtDistancePtSegSqr2D(centerPos, va, vb, tseg);
+			Real tseg;
+			Real distSqr = dtDistancePtSegSqr2D(centerPos, va, vb, tseg);
 			if (distSqr > radiusSqr)
 				continue;
 			
@@ -2837,15 +2837,15 @@ dtStatus dtNavMeshQuery::findPolysAroundCircle(dtPolyRef startRef, const float* 
 			
 			// Cost
 			if (neighbourNode->flags == 0)
-				dtVlerp(neighbourNode->pos, va, vb, 0.5f);
+				dtVlerp(neighbourNode->pos, va, vb, Real ( 0.5f));
 			
-			float cost = filter->getCost(
+			Real cost = filter->getCost(
 				bestNode->pos, neighbourNode->pos,
 				parentRef, parentTile, parentPoly,
 				bestRef, bestTile, bestPoly,
 				neighbourRef, neighbourTile, neighbourPoly);
 
-			const float total = bestNode->total + cost;
+			const Real total = bestNode->total + cost;
 			
 			// The node is already in open list and the new result is worse, skip.
 			if ((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total)
@@ -2894,9 +2894,9 @@ dtStatus dtNavMeshQuery::findPolysAroundCircle(dtPolyRef startRef, const float* 
 /// If the result arrays are is too small to hold the entire result set, they will 
 /// be filled to capacity.
 ///
-dtStatus dtNavMeshQuery::findPolysAroundShape(dtPolyRef startRef, const float* verts, const int nverts,
+dtStatus dtNavMeshQuery::findPolysAroundShape(dtPolyRef startRef, const Real* verts, const int nverts,
 											  const dtQueryFilter* filter,
-											  dtPolyRef* resultRef, dtPolyRef* resultParent, float* resultCost,
+											  dtPolyRef* resultRef, dtPolyRef* resultParent, Real* resultCost,
 											  int* resultCount, const int maxResult) const
 {
 	dtAssert(m_nav);
@@ -2922,16 +2922,16 @@ dtStatus dtNavMeshQuery::findPolysAroundShape(dtPolyRef startRef, const float* v
 	m_nodePool->clear();
 	m_openList->clear();
 	
-	float centerPos[3] = {0,0,0};
+	Real centerPos[3] = { Real ( 0),Real ( 0),Real ( 0)};
 	for (int i = 0; i < nverts; ++i)
 		dtVadd(centerPos,centerPos,&verts[i*3]);
-	dtVscale(centerPos,centerPos,1.0f/nverts);
+	dtVscale(centerPos,centerPos, Real ( 1.0f)/nverts);
 
 	dtNode* startNode = m_nodePool->getNode(startRef);
 	dtVcopy(startNode->pos, centerPos);
 	startNode->pidx = 0;
-	startNode->cost = 0;
-	startNode->total = 0;
+	startNode->cost = Real ( 0);
+	startNode->total = Real ( 0);
 	startNode->id = startRef;
 	startNode->flags = DT_NODE_OPEN;
 	m_openList->push(startNode);
@@ -2996,16 +2996,16 @@ dtStatus dtNavMeshQuery::findPolysAroundShape(dtPolyRef startRef, const float* v
 				continue;
 			
 			// Find edge and calc distance to the edge.
-			float va[3], vb[3];
+			Real va[3], vb[3];
 			if (!getPortalPoints(bestRef, bestPoly, bestTile, neighbourRef, neighbourPoly, neighbourTile, va, vb))
 				continue;
 			
 			// If the poly is not touching the edge to the next polygon, skip the connection it.
-			float tmin, tmax;
+			Real tmin, tmax;
 			int segMin, segMax;
 			if (!dtIntersectSegmentPoly2D(va, vb, verts, nverts, tmin, tmax, segMin, segMax))
 				continue;
-			if (tmin > 1.0f || tmax < 0.0f)
+			if (tmin > Real ( 1.0f) || tmax < Real ( 0.0f))
 				continue;
 			
 			dtNode* neighbourNode = m_nodePool->getNode(neighbourRef);
@@ -3020,15 +3020,15 @@ dtStatus dtNavMeshQuery::findPolysAroundShape(dtPolyRef startRef, const float* v
 			
 			// Cost
 			if (neighbourNode->flags == 0)
-				dtVlerp(neighbourNode->pos, va, vb, 0.5f);
+				dtVlerp(neighbourNode->pos, va, vb, Real ( 0.5f));
 			
-			float cost = filter->getCost(
+			Real cost = filter->getCost(
 				bestNode->pos, neighbourNode->pos,
 				parentRef, parentTile, parentPoly,
 				bestRef, bestTile, bestPoly,
 				neighbourRef, neighbourTile, neighbourPoly);
 
-			const float total = bestNode->total + cost;
+			const Real total = bestNode->total + cost;
 			
 			// The node is already in open list and the new result is worse, skip.
 			if ((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total)
@@ -3092,7 +3092,7 @@ dtStatus dtNavMeshQuery::getPathFromDijkstraSearch(dtPolyRef endRef, dtPolyRef* 
 /// If the result arrays are is too small to hold the entire result set, they will 
 /// be filled to capacity.
 /// 
-dtStatus dtNavMeshQuery::findLocalNeighbourhood(dtPolyRef startRef, const float* centerPos, const float radius,
+dtStatus dtNavMeshQuery::findLocalNeighbourhood(dtPolyRef startRef, const Real* centerPos, const Real radius,
 												const dtQueryFilter* filter,
 												dtPolyRef* resultRef, dtPolyRef* resultParent,
 												int* resultCount, const int maxResult) const
@@ -3107,7 +3107,7 @@ dtStatus dtNavMeshQuery::findLocalNeighbourhood(dtPolyRef startRef, const float*
 
 	if (!m_nav->isValidPolyRef(startRef) ||
 		!centerPos || !dtVisfinite(centerPos) ||
-		radius < 0 || !dtMathIsfinite(radius) ||
+		radius < Real ( 0) || !dtMathIsfinite(radius) ||
 		!filter || maxResult < 0)
 	{
 		return DT_FAILURE | DT_INVALID_PARAM;
@@ -3125,10 +3125,10 @@ dtStatus dtNavMeshQuery::findLocalNeighbourhood(dtPolyRef startRef, const float*
 	startNode->flags = DT_NODE_CLOSED;
 	stack[nstack++] = startNode;
 	
-	const float radiusSqr = dtSqr(radius);
+	const Real radiusSqr = dtSqr(radius);
 	
-	float pa[DT_VERTS_PER_POLYGON*3];
-	float pb[DT_VERTS_PER_POLYGON*3];
+	Real pa[DT_VERTS_PER_POLYGON*3];
+	Real pb[DT_VERTS_PER_POLYGON*3];
 	
 	dtStatus status = DT_SUCCESS;
 	
@@ -3190,13 +3190,13 @@ dtStatus dtNavMeshQuery::findLocalNeighbourhood(dtPolyRef startRef, const float*
 				continue;
 			
 			// Find edge and calc distance to the edge.
-			float va[3], vb[3];
+			Real va[3], vb[3];
 			if (!getPortalPoints(curRef, curPoly, curTile, neighbourRef, neighbourPoly, neighbourTile, va, vb))
 				continue;
 			
 			// If the circle is not touching the next polygon, skip it.
-			float tseg;
-			float distSqr = dtDistancePtSegSqr2D(centerPos, va, vb, tseg);
+			Real tseg;
+			Real distSqr = dtDistancePtSegSqr2D(centerPos, va, vb, tseg);
 			if (distSqr > radiusSqr)
 				continue;
 			
@@ -3315,7 +3315,7 @@ static void insertInterval(dtSegInterval* ints, int& nints, const int maxInts,
 /// maximum segments per polygon of the source navigation mesh.
 /// 
 dtStatus dtNavMeshQuery::getPolyWallSegments(dtPolyRef ref, const dtQueryFilter* filter,
-											 float* segmentVerts, dtPolyRef* segmentRefs, int* segmentCount,
+											 Real* segmentVerts, dtPolyRef* segmentRefs, int* segmentCount,
 											 const int maxSegments) const
 {
 	dtAssert(m_nav);
@@ -3385,9 +3385,9 @@ dtStatus dtNavMeshQuery::getPolyWallSegments(dtPolyRef ref, const dtQueryFilter*
 			
 			if (n < maxSegments)
 			{
-				const float* vj = &tile->verts[poly->verts[j]*3];
-				const float* vi = &tile->verts[poly->verts[i]*3];
-				float* seg = &segmentVerts[n*6];
+				const Real* vj = &tile->verts[poly->verts[j]*3];
+				const Real* vi = &tile->verts[poly->verts[i]*3];
+				Real* seg = &segmentVerts[n*6];
 				dtVcopy(seg+0, vj);
 				dtVcopy(seg+3, vi);
 				if (segmentRefs)
@@ -3407,18 +3407,18 @@ dtStatus dtNavMeshQuery::getPolyWallSegments(dtPolyRef ref, const dtQueryFilter*
 		insertInterval(ints, nints, MAX_INTERVAL, 255, 256, 0);
 		
 		// Store segments.
-		const float* vj = &tile->verts[poly->verts[j]*3];
-		const float* vi = &tile->verts[poly->verts[i]*3];
+		const Real* vj = &tile->verts[poly->verts[j]*3];
+		const Real* vi = &tile->verts[poly->verts[i]*3];
 		for (int k = 1; k < nints; ++k)
 		{
 			// Portal segment.
 			if (storePortals && ints[k].ref)
 			{
-				const float tmin = ints[k].tmin/255.0f; 
-				const float tmax = ints[k].tmax/255.0f; 
+				const Real tmin = Real(ints[k].tmin)/Real(255.0f); 
+				const Real tmax = Real(ints[k].tmax)/Real(255.0f); 
 				if (n < maxSegments)
 				{
-					float* seg = &segmentVerts[n*6];
+					Real* seg = &segmentVerts[n*6];
 					dtVlerp(seg+0, vj,vi, tmin);
 					dtVlerp(seg+3, vj,vi, tmax);
 					if (segmentRefs)
@@ -3436,11 +3436,11 @@ dtStatus dtNavMeshQuery::getPolyWallSegments(dtPolyRef ref, const dtQueryFilter*
 			const int imax = ints[k].tmin;
 			if (imin != imax)
 			{
-				const float tmin = imin/255.0f; 
-				const float tmax = imax/255.0f; 
+				const Real tmin = Real(imin)/Real(255.0f); 
+				const Real tmax = Real(imax)/Real(255.0f); 
 				if (n < maxSegments)
 				{
-					float* seg = &segmentVerts[n*6];
+					Real* seg = &segmentVerts[n*6];
 					dtVlerp(seg+0, vj,vi, tmin);
 					dtVlerp(seg+3, vj,vi, tmax);
 					if (segmentRefs)
@@ -3470,9 +3470,9 @@ dtStatus dtNavMeshQuery::getPolyWallSegments(dtPolyRef ref, const dtQueryFilter*
 ///
 /// The normal will become unpredicable if @p hitDist is a very small number.
 ///
-dtStatus dtNavMeshQuery::findDistanceToWall(dtPolyRef startRef, const float* centerPos, const float maxRadius,
+dtStatus dtNavMeshQuery::findDistanceToWall(dtPolyRef startRef, const Real* centerPos, const Real maxRadius,
 											const dtQueryFilter* filter,
-											float* hitDist, float* hitPos, float* hitNormal) const
+											Real* hitDist, Real* hitPos, Real* hitNormal) const
 {
 	dtAssert(m_nav);
 	dtAssert(m_nodePool);
@@ -3481,7 +3481,7 @@ dtStatus dtNavMeshQuery::findDistanceToWall(dtPolyRef startRef, const float* cen
 	// Validate input
 	if (!m_nav->isValidPolyRef(startRef) ||
 		!centerPos || !dtVisfinite(centerPos) ||
-		maxRadius < 0 || !dtMathIsfinite(maxRadius) ||
+		maxRadius < Real ( 0) || !dtMathIsfinite(maxRadius) ||
 		!filter || !hitDist || !hitPos || !hitNormal)
 	{
 		return DT_FAILURE | DT_INVALID_PARAM;
@@ -3493,13 +3493,13 @@ dtStatus dtNavMeshQuery::findDistanceToWall(dtPolyRef startRef, const float* cen
 	dtNode* startNode = m_nodePool->getNode(startRef);
 	dtVcopy(startNode->pos, centerPos);
 	startNode->pidx = 0;
-	startNode->cost = 0;
-	startNode->total = 0;
+	startNode->cost = Real ( 0);
+	startNode->total = Real ( 0);
 	startNode->id = startRef;
 	startNode->flags = DT_NODE_OPEN;
 	m_openList->push(startNode);
 	
-	float radiusSqr = dtSqr(maxRadius);
+	Real radiusSqr = dtSqr(maxRadius);
 	
 	dtStatus status = DT_SUCCESS;
 	
@@ -3561,10 +3561,10 @@ dtStatus dtNavMeshQuery::findDistanceToWall(dtPolyRef startRef, const float* cen
 			}
 			
 			// Calc distance to the edge.
-			const float* vj = &bestTile->verts[bestPoly->verts[j]*3];
-			const float* vi = &bestTile->verts[bestPoly->verts[i]*3];
-			float tseg;
-			float distSqr = dtDistancePtSegSqr2D(centerPos, vj, vi, tseg);
+			const Real* vj = &bestTile->verts[bestPoly->verts[j]*3];
+			const Real* vi = &bestTile->verts[bestPoly->verts[i]*3];
+			Real tseg;
+			Real distSqr = dtDistancePtSegSqr2D(centerPos, vj, vi, tseg);
 			
 			// Edge is too far, skip.
 			if (distSqr > radiusSqr)
@@ -3596,10 +3596,10 @@ dtStatus dtNavMeshQuery::findDistanceToWall(dtPolyRef startRef, const float* cen
 				continue;
 			
 			// Calc distance to the edge.
-			const float* va = &bestTile->verts[bestPoly->verts[link->edge]*3];
-			const float* vb = &bestTile->verts[bestPoly->verts[(link->edge+1) % bestPoly->vertCount]*3];
-			float tseg;
-			float distSqr = dtDistancePtSegSqr2D(centerPos, va, vb, tseg);
+			const Real* va = &bestTile->verts[bestPoly->verts[link->edge]*3];
+			const Real* vb = &bestTile->verts[bestPoly->verts[(link->edge+1) % bestPoly->vertCount]*3];
+			Real tseg;
+			Real distSqr = dtDistancePtSegSqr2D(centerPos, va, vb, tseg);
 			
 			// If the circle is not touching the next polygon, skip it.
 			if (distSqr > radiusSqr)
@@ -3625,7 +3625,7 @@ dtStatus dtNavMeshQuery::findDistanceToWall(dtPolyRef startRef, const float* cen
 								neighbourRef, neighbourPoly, neighbourTile, neighbourNode->pos);
 			}
 			
-			const float total = bestNode->total + dtVdist(bestNode->pos, neighbourNode->pos);
+			const Real total = bestNode->total + dtVdist(bestNode->pos, neighbourNode->pos);
 			
 			// The node is already in open list and the new result is worse, skip.
 			if ((neighbourNode->flags & DT_NODE_OPEN) && total >= neighbourNode->total)

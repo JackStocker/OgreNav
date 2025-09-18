@@ -1,5 +1,7 @@
 #pragma once
 
+#include "RealTypes.h"
+
 /**
   * Configuration parameters for recast navmesh building.
   * A lot of the descripions of the parameters are not mine but come from the very
@@ -48,41 +50,41 @@ public:
     /**
       * @see{cellSize}
       **/
-    inline void setCellSize(Ogre::Real cellSize) { this->cellSize = cellSize; eval(); }
+    inline void setCellSize(Real cellSize) { this->cellSize = cellSize; eval(); }
     /**
       * @see{cellHeight}
       **/
-    inline void setCellHeight(Ogre::Real cellHeight) { this->cellHeight = cellHeight; eval(); }
+    inline void setCellHeight( Real cellHeight) { this->cellHeight = cellHeight; eval(); }
     /*****************
       * Agent
      *****************/
     /**
       * @see{agentHeight}
       **/
-    inline void setAgentHeight(Ogre::Real agentHeight) { this->agentHeight = agentHeight; eval(); }
+    inline void setAgentHeight( Real agentHeight) { this->agentHeight = agentHeight; eval(); }
     /**
       * @see{agentRadius}
       **/
-    inline void setAgentRadius(Ogre::Real agentRadius) { this->agentRadius = agentRadius; eval(); }
+    inline void setAgentRadius( Real agentRadius) { this->agentRadius = agentRadius; eval(); }
     /**
       * @see{agentMaxClimb}
       **/
-    inline void setAgentMaxClimb(Ogre::Real agentMaxClimb) { this->agentMaxClimb = agentMaxClimb; eval(); }
+    inline void setAgentMaxClimb( Real agentMaxClimb) { this->agentMaxClimb = agentMaxClimb; eval(); }
     /**
       * @see{agentMaxSlope}
       **/
-    inline void setAgentMaxSlope(Ogre::Real agentMaxSlope) { this->agentMaxSlope = agentMaxSlope; }
+    inline void setAgentMaxSlope( Real agentMaxSlope) { this->agentMaxSlope = agentMaxSlope; }
     /*****************
       * Region
      *****************/
     /**
       * @see{regionMinSize}
       **/
-    inline void setRegionMinSize(Ogre::Real regionMinSize) { this->regionMinSize = regionMinSize; eval(); }
+    inline void setRegionMinSize( Real regionMinSize) { this->regionMinSize = regionMinSize; eval(); }
     /**
       * @see{regionMergeSize}
       **/
-    inline void setRegionMergeSize(Ogre::Real regionMergeSize) { this->regionMergeSize = regionMergeSize; eval(); }
+    inline void setRegionMergeSize( Real regionMergeSize) { this->regionMergeSize = regionMergeSize; eval(); }
 // TODO Add "monotone partitioning" option to call rcBuildRegionsMonotone in single navmesh building.
 
     /*****************
@@ -91,11 +93,11 @@ public:
     /**
       * @see{edgeMaxLen}
       **/
-    inline void setEdgeMaxLen(Ogre::Real edgeMaxLength) { this->edgeMaxLen = edgeMaxLength; eval(); }
+    inline void setEdgeMaxLen( Real edgeMaxLength) { this->edgeMaxLen = edgeMaxLength; eval(); }
     /**
       * @see{edgeMaxError}
       **/
-    inline void setEdgeMaxError(Ogre::Real edgeMaxError) { this->edgeMaxError = edgeMaxError;}
+    inline void setEdgeMaxError( Real edgeMaxError) { this->edgeMaxError = edgeMaxError;}
     /**
       * @see{vertsPerPoly}
       **/
@@ -106,11 +108,11 @@ public:
     /**
       * @see{detailSampleDist}
       **/
-    inline void setDetailSampleDist(Ogre::Real detailSampleDist) { this->detailSampleDist = detailSampleDist; eval(); }
+    inline void setDetailSampleDist( Real detailSampleDist) { this->detailSampleDist = detailSampleDist; eval(); }
     /**
       * @see{detailSampleMaxError}
       **/
-    inline void setDetailSampleMaxError(Ogre::Real detailSampleMaxError) { this->detailSampleMaxError = detailSampleMaxError; eval(); }
+    inline void setDetailSampleMaxError( Real detailSampleMaxError) { this->detailSampleMaxError = detailSampleMaxError; eval(); }
 
     /**
       * @see{keepInterResults}
@@ -144,54 +146,54 @@ public:
     /**
       * @see{_detailSampleDist}
       **/
-    inline void _setDetailSampleDist(Ogre::Real detailSampleDist) { this->_detailSampleDist = detailSampleDist; }
+    inline void _setDetailSampleDist( Real detailSampleDist) { this->_detailSampleDist = detailSampleDist; }
     /**
       * @see{_detailSampleMaxError}
       **/
-    inline void _setDetailSampleMaxError(Ogre::Real detailSampleMaxError) { this->_detailSampleMaxError = detailSampleMaxError; }
+    inline void _setDetailSampleMaxError( Real detailSampleMaxError) { this->_detailSampleMaxError = detailSampleMaxError; }
 
 
 
     /**
       * @see{cellSize}
       **/
-    inline Ogre::Real getCellSize(void) const { return cellSize; }
+    inline Real getCellSize(void) const { return cellSize; }
     /**
       * @see{cellHeight}
       **/
-    inline Ogre::Real getCellHeight(void) const { return cellHeight; }
+    inline Real getCellHeight(void) const { return cellHeight; }
     /**
       * @see{agentMaxSlope}
       **/
-    inline Ogre::Real getAgentMaxSlope(void) const { return agentMaxSlope; }
+    inline Real getAgentMaxSlope(void) const { return agentMaxSlope; }
     /**
       * @see{agentHeight}
       **/
-    inline Ogre::Real getAgentHeight(void) const { return agentHeight; }
+    inline Real getAgentHeight(void) const { return agentHeight; }
     /**
       * @see{agentMaxClimb}
       **/
-    inline Ogre::Real getAgentMaxClimb(void) const { return agentMaxClimb; }
+    inline Real getAgentMaxClimb(void) const { return agentMaxClimb; }
     /**
       * @see{agentRadius}
       **/
-    inline Ogre::Real getAgentRadius(void) const { return agentRadius; }
+    inline Real getAgentRadius(void) const { return agentRadius; }
     /**
       * @see{edgeMaxLen}
       **/
-    inline Ogre::Real getEdgeMaxLen(void) const { return edgeMaxLen; }
+    inline Real getEdgeMaxLen(void) const { return edgeMaxLen; }
     /**
       * @see{edgeMaxError}
       **/
-    inline Ogre::Real getEdgeMaxError(void) const { return edgeMaxError; }
+    inline Real getEdgeMaxError(void) const { return edgeMaxError; }
     /**
       * @see{regionMinSize}
       **/
-    inline Ogre::Real getRegionMinSize(void) const { return regionMinSize; }
+    inline Real getRegionMinSize(void) const { return regionMinSize; }
     /**
       * @see{regionMergeSize}
       **/
-    inline Ogre::Real getRegionMergeSize(void) const { return regionMergeSize; }
+    inline Real getRegionMergeSize(void) const { return regionMergeSize; }
     /**
       * @see{vertsPerPoly}
       **/
@@ -199,11 +201,11 @@ public:
     /**
       * @see{detailSampleDist}
       **/
-    inline Ogre::Real getDetailSampleDist(void) const { return detailSampleDist; }
+    inline Real getDetailSampleDist(void) const { return detailSampleDist; }
     /**
       * @see{detailSampleMaxError}
       **/
-    inline Ogre::Real getDetailSampleMaxError(void) const { return detailSampleMaxError; }
+    inline Real getDetailSampleMaxError(void) const { return detailSampleMaxError; }
 
     /**
       * @see{keepInterResults}
@@ -251,13 +253,13 @@ private:
       * _ setters.
       **/
     inline void eval(void) {
-        _walkableHeight = (int)ceilf(agentHeight / cellHeight);
-        _walkableClimb = (int)floorf(agentMaxClimb / cellHeight);
-        _walkableRadius = (int)ceilf(agentRadius / cellSize);
+        _walkableHeight = (int)fixedmath::ceil(agentHeight / cellHeight);
+        _walkableClimb = (int)fixedmath::floor(agentMaxClimb / cellHeight);
+        _walkableRadius = (int)fixedmath::ceil(agentRadius / cellSize);
         _maxEdgeLen = (int)(edgeMaxLen / cellSize);
         _minRegionArea = (int)rcSqr(regionMinSize);      // Note: area = size*size
         _mergeRegionArea = (int)rcSqr(regionMergeSize);   // Note: area = size*size
-        _detailSampleDist = detailSampleDist < 0.9f ? 0 : cellSize * detailSampleDist;
+        _detailSampleDist = detailSampleDist < Real(0.9f) ? Real(0) : cellSize * detailSampleDist;
         _detailSampleMaxError = cellHeight * detailSampleMaxError;
     }
 
@@ -274,7 +276,7 @@ private:
       * cs and ch define voxel/grid/cell size. So their values have significant side effects on all parameters defined in voxel units.
       * The minimum value for this parameter depends on the platform's floating point accuracy, with the practical minimum usually around 0.05.
       **/
-    Ogre::Real cellSize;
+    Real cellSize;
 
     /**
       * Cellheight (ch) is the height resolution used when sampling the source geometry. The height of the voxels in voxel fields.
@@ -289,7 +291,7 @@ private:
       * Setting ch lower will result in more accurate detection of areas the agent can still pass under, as min walkable height is discretisized
       * in number of cells. Also walkableClimb's precision is affected by ch in the same way, along with some other parameters.
       **/
-    Ogre::Real cellHeight;
+    Real cellHeight;
 
     /**
       * The maximum slope that is considered traversable (in degrees).
@@ -298,7 +300,7 @@ private:
       *
       * Also called maxTraversableSlope
       **/
-    Ogre::Real agentMaxSlope;
+    Real agentMaxSlope;
 
     /**
       * The height of an agent. Defines the minimum height that
@@ -307,7 +309,7 @@ private:
       *
       * This parameter serves at setting walkableHeight (minTraversableHeight) parameter, precision of this parameter is determined by cellHeight (ch).
       **/
-    Ogre::Real agentHeight;
+    Real agentHeight;
 
     /**
       * The Maximum ledge height that is considered to still be traversable.
@@ -315,7 +317,7 @@ private:
       * [Limit: >=0]
       * Allows the mesh to flow over low lying obstructions such as curbs and up/down stairways. The value is usually set to how far up/down an agent can step.
       **/
-    Ogre::Real agentMaxClimb;
+    Real agentMaxClimb;
 
     /**
       * The radius on the xz (ground) plane of the circle that describes the agent (character) size.
@@ -329,7 +331,7 @@ private:
       * While a value of zero is legal, it is not recommended and can result in odd edge case issues.
       *
       **/
-    Ogre::Real agentRadius;
+    Real agentRadius;
 
     /**
       * The maximum allowed length for contour edges along the border of the mesh.
@@ -337,7 +339,7 @@ private:
       * Extra vertices will be inserted as needed to keep contour edges below this length. A value of zero effectively disables this feature.
       * Serves at setting maxEdgeLen, the precision of maxEdgeLen is affected by cellSize (cs).
       **/
-    Ogre::Real edgeMaxLen;
+    Real edgeMaxLen;
 
     /**
       * The maximum distance a simplfied contour's border edges should deviate the original raw contour. (edge matching)
@@ -349,7 +351,7 @@ private:
       * A lower value will result in mesh edges following the xz-plane geometry contour more accurately at the expense of an increased triangle count.
       * A value to zero is not recommended since it can result in a large increase in the number of polygons in the final meshes at a high processing cost.
       **/
-    Ogre::Real edgeMaxError;
+    Real edgeMaxError;
 
     /**
       * The minimum number of cells allowed to form isolated island areas (size).
@@ -357,14 +359,14 @@ private:
       * Any regions that are smaller than this area will be marked as unwalkable. This is useful in removing useless regions that can sometimes form on geometry such as table tops, box tops, etc.
       * Serves at setting minRegionArea, which will be set to the square of this value (the regions are square, thus area=size*size)
       **/
-    Ogre::Real regionMinSize;
+    Real regionMinSize;
 
     /**
       * Any regions with a span count smaller than this value will, if possible, be merged with larger regions.
       * [Limit: >=0] [Units: vx]
       * Serves at setting MergeRegionArea, which will be set to the square of this value (the regions are square, thus area=size*size)
       **/
-    Ogre::Real regionMergeSize;
+    Real regionMergeSize;
 
     /**
       * The maximum number of vertices allowed for polygons generated during the contour to polygon conversion process.
@@ -386,7 +388,7 @@ private:
       * Impacts how well the final detail mesh conforms to the surface contour of the original geometry. Higher values result in a detail mesh which conforms more closely to the original geometry's surface at the cost of a higher final triangle count and higher processing cost.
       * Setting this argument to less than 0.9 disables this functionality.
       **/
-    Ogre::Real detailSampleDist;
+    Real detailSampleDist;
 
     /**
       * The maximum distance the detail mesh surface should deviate from heightfield data.
@@ -399,7 +401,7 @@ private:
       * Setting the value to zero is not recommended since it can result in a large increase in the number of triangles in the final detail mesh at a high processing cost.
       * Stronly related to detailSampleDist (contourSampleDistance).
       **/
-    Ogre::Real detailSampleMaxError;
+    Real detailSampleMaxError;
 
     /**
       * Determines whether intermediary results are stored in OgreRecast class or whether they are removed after navmesh creation.
@@ -500,7 +502,7 @@ private:
       * The difference between this parameter and edge matching (edgeMaxError) is that this parameter operates on the height rather than the xz-plane.
       * It also matches the entire detail mesh surface to the contour of the original geometry. Edge matching only matches edges of meshes to the contour of the original geometry.
       **/
-    Ogre::Real _detailSampleDist;
+    Real _detailSampleDist;
 
     /**
       * The maximum distance the detail mesh surface should deviate from heightfield data.
@@ -513,5 +515,5 @@ private:
       * Setting the value to zero is not recommended since it can result in a large increase in the number of triangles in the final detail mesh at a high processing cost.
       * This parameter has no impact if contourSampleDistance is set to zero.
       **/
-    Ogre::Real _detailSampleMaxError;
+    Real _detailSampleMaxError;
 };

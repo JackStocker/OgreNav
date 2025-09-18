@@ -45,24 +45,24 @@ OgreRecast ( const OgreRecastConfigParams &config_params ) :
    BuildContext ( false )
 {
    // Set default size of box around points to look for nav polygons
-   PolySearchBox [ 0 ] = 32.0f ;
-   PolySearchBox [ 1 ] = 32.0f ;
-   PolySearchBox [ 2 ] = 32.0f ;
+   PolySearchBox [ 0 ] = Real(32.0f) ;
+   PolySearchBox [ 1 ] = Real(32.0f) ;
+   PolySearchBox [ 2 ] = Real(32.0f) ;
 
    // Setup the default query filter
    QueryFilter.setIncludeFlags ( POLYFLAGS_ALL ) ;
    QueryFilter.setExcludeFlags ( 0 ) ;
-   QueryFilter.setAreaCost ( POLYAREA_GRASS, 2.0f  ) ;
-   QueryFilter.setAreaCost ( POLYAREA_WATER, 10.0f ) ;
+   QueryFilter.setAreaCost ( POLYAREA_GRASS, Real(2.0f)  ) ;
+   QueryFilter.setAreaCost ( POLYAREA_WATER, Real(10.0f) ) ;
 
    // Needs to be roughly relative to the extra speed that is gained by travelling over roads
    //QueryFilter.setAreaCost ( POLYAREA_ROAD,  1.1f ) ;
 
    // Reduced further following the increased H_SCALE heuristic cost to try to get units to choose roads more often
-   QueryFilter.setAreaCost ( POLYAREA_ROAD, 0.8f ) ;
+   QueryFilter.setAreaCost ( POLYAREA_ROAD, Real ( 0.8f) ) ;
 
-   QueryFilter.setAreaCost ( POLYAREA_SAND,  2.0f  ) ;
-   QueryFilter.setAreaCost ( POLYAREA_GATE,  1.8f  ) ; // Slgihtly less than normal Grass
+   QueryFilter.setAreaCost ( POLYAREA_SAND,  Real(2.0f)  ) ;
+   QueryFilter.setAreaCost ( POLYAREA_GATE,  Real(1.8f)  ) ; // Slgihtly less than normal Grass
 
    // Set configuration
    ConfigureBuildParameters ( config_params ) ;
@@ -72,7 +72,7 @@ OgreRecast ( const OgreRecastConfigParams &config_params ) :
 
 void
 OgreRecast::
-Update ( const float delta_time,
+Update ( const Real delta_time,
          const bool  until_up_to_date )
 {
    TileCache->HandleUpdate ( delta_time, until_up_to_date ) ;
@@ -185,8 +185,8 @@ GetHeightField () const
 
 dtObstacleRef
 OgreRecast::
-AddObstacle ( const Ogre::Vector3  &min,
-              const Ogre::Vector3  &max,
+AddObstacle ( const RealVector3    min,
+              const RealVector3    max,
               const unsigned char  area_id,
               const unsigned short flags )
 {
@@ -195,11 +195,11 @@ AddObstacle ( const Ogre::Vector3  &min,
 
 dtObstacleRef
 OgreRecast::
-AddObstacle ( const Ogre::Vector3  &centre,
-              const float          width,
-              const float          depth,
-              const float          height,
-              const float          y_rotation, // radians
+AddObstacle ( const RealVector3   centre,
+              const Real          width,
+              const Real          depth,
+              const Real          height,
+              const Real          y_rotation, // radians
               const unsigned char  area_id,
               const unsigned short flags )
 {
@@ -222,8 +222,8 @@ RemoveObstacle ( dtObstacleRef ref )
 
 OffMeshConnectionId
 OgreRecast::
-AddOffMeshConnection ( const Ogre::Vector3 start_pos,
-                       const Ogre::Vector3 end_pos )
+AddOffMeshConnection ( const RealVector3 start_pos,
+                       const RealVector3 end_pos )
 {
    return TileCache->AddOffMeshConnection ( start_pos, end_pos ) ;
 }
@@ -237,11 +237,11 @@ RemoveOffMeshConnection ( const OffMeshConnectionId id )
 
 FindPathReturnCode
 OgreRecast::
-FindPath ( float                      *start_pos,
-           float                      *end_pos,
-           const unsigned int         include_flags,
-           const unsigned int         exclude_flags,
-           std::vector<Ogre::Vector3> &path )
+FindPath ( Real                     *start_pos,
+           Real                     *end_pos,
+           const unsigned int       include_flags,
+           const unsigned int       exclude_flags,
+           std::vector<RealVector3> &path )
 {
    int vertex_count = 0 ;
 
@@ -256,9 +256,9 @@ FindPath ( float                      *start_pos,
 
       for ( auto vertex_index = 0 ; vertex_index < vertex_count ; ++vertex_index )
       {
-         path.push_back ( Ogre::Vector3 ( StraightPath [ path_poly_index + 0 ],
-                                          StraightPath [ path_poly_index + 1 ],
-                                          StraightPath [ path_poly_index + 2 ] ) ) ;
+         path.push_back ( RealVector3 ( StraightPath [ path_poly_index + 0 ],
+                                        StraightPath [ path_poly_index + 1 ],
+                                        StraightPath [ path_poly_index + 2 ] ) ) ;
 
          path_poly_index += 3 ;
       }
@@ -269,28 +269,28 @@ FindPath ( float                      *start_pos,
 
 FindPathReturnCode
 OgreRecast::
-FindPath ( const Ogre::Vector3        &start_pos,
-           const Ogre::Vector3        &end_pos,
-           const unsigned int         include_flags,
-           const unsigned int         exclude_flags,
-           std::vector<Ogre::Vector3> &path )
+FindPath ( const RealVector3        start_pos,
+           const RealVector3        end_pos,
+           const unsigned int       include_flags,
+           const unsigned int       exclude_flags,
+           std::vector<RealVector3> &path )
 {
-   float start [ 3 ] ;
-   float end   [ 3 ] ;
+   Real start [ 3 ] ;
+   Real end   [ 3 ] ;
 
-   OgreVect3ToFloatA ( start_pos, start ) ;
-   OgreVect3ToFloatA ( end_pos,   end ) ;
+   OgreVect3ToReal ( start_pos, start ) ;
+   OgreVect3ToReal ( end_pos,   end ) ;
 
    return FindPath ( start, end, include_flags, exclude_flags, path ) ;
 }
 
 FindPathReturnCode
 OgreRecast::
-CanPathTo ( float*             start_pos,
-            float*             end_pos,
+CanPathTo ( Real*              start_pos,
+            Real*              end_pos,
             const unsigned int include_flags,
             const unsigned int exclude_flags,
-            Ogre::Vector3      &final_node )
+            RealVector3        &final_node )
 {
    int vertex_count = 0 ;
 
@@ -310,33 +310,33 @@ CanPathTo ( float*             start_pos,
 
 FindPathReturnCode
 OgreRecast::
-CanPathTo ( const Ogre::Vector3 &start_pos,
-            const Ogre::Vector3 &end_pos,
-            const unsigned int  include_flags,
-            const unsigned int  exclude_flags,
-            Ogre::Vector3       &final_node )
+CanPathTo ( const RealVector3  start_pos,
+            const RealVector3  end_pos,
+            const unsigned int include_flags,
+            const unsigned int exclude_flags,
+            RealVector3        &final_node )
 {
-   float start [ 3 ] ;
-   float end   [ 3 ] ;
+   Real start [ 3 ] ;
+   Real end   [ 3 ] ;
 
-   OgreVect3ToFloatA ( start_pos, start ) ;
-   OgreVect3ToFloatA ( end_pos,   end ) ;
+   OgreVect3ToReal ( start_pos, start ) ;
+   OgreVect3ToReal ( end_pos,   end ) ;
 
    return CanPathTo ( start, end, include_flags, exclude_flags, final_node ) ;
 }
 
 FindPathReturnCode
 OgreRecast::
-IsStraightLinePathTo ( float              *start_pos,
-                       float              *end_pos,
+IsStraightLinePathTo ( Real              *start_pos,
+                       Real              *end_pos,
                        const unsigned int include_flags,
                        const unsigned int exclude_flags )
 {
    dtStatus  status ;
    dtPolyRef start_poly ;
    dtPolyRef end_poly ;
-   float     start_nearest_point [ 3 ] ;
-   float     end_nearest_point   [ 3 ] ;
+   Real     start_nearest_point [ 3 ] ;
+   Real     end_nearest_point   [ 3 ] ;
 
    QueryFilter.setIncludeFlags ( include_flags ) ;
    QueryFilter.setExcludeFlags ( exclude_flags ) ;
@@ -361,15 +361,15 @@ IsStraightLinePathTo ( float              *start_pos,
 
    const auto MAX_RAYCAST_PATH = 32 ;
 
-   float     hit = 0.0f ;
-   float     normal [ 3 ] ;
+   Real     hit = Real ( 0.0f) ;
+   Real     normal [ 3 ] ;
    dtPolyRef path [ MAX_RAYCAST_PATH ] ;
    int       path_count = 0 ;
 
    status = NavQuery.raycast ( start_poly, start_pos, end_pos, &QueryFilter, &hit, normal, path, &path_count, MAX_RAYCAST_PATH ) ;
 
    if ( ( path_count >= 1 ) &&
-        ( hit > 0.99f ) )
+        ( hit > Real ( 0.99f) ) )
    {
       return FindPathReturnCode::PATH_FOUND ;
    }
@@ -381,24 +381,24 @@ IsStraightLinePathTo ( float              *start_pos,
 
 FindPathReturnCode
 OgreRecast::
-IsStraightLinePathTo ( const Ogre::Vector3 &start_pos,
-                       const Ogre::Vector3 &end_pos,
-                       const unsigned int  include_flags,
-                       const unsigned int  exclude_flags )
+IsStraightLinePathTo ( const RealVector3  start_pos,
+                       const RealVector3  end_pos,
+                       const unsigned int include_flags,
+                       const unsigned int exclude_flags )
 {
-   float start [ 3 ] ;
-   float end   [ 3 ] ;
+   Real start [ 3 ] ;
+   Real end   [ 3 ] ;
 
-   OgreVect3ToFloatA ( start_pos, start ) ;
-   OgreVect3ToFloatA ( end_pos,   end ) ;
+   OgreVect3ToReal ( start_pos, start ) ;
+   OgreVect3ToReal ( end_pos,   end ) ;
 
    return IsStraightLinePathTo ( start, end, include_flags, exclude_flags ) ;
 }
 
 void
 OgreRecast::
-OgreVect3ToFloatA ( const Ogre::Vector3 &vect,
-                    float               *result )
+OgreVect3ToReal ( const RealVector3 vect,
+                  Real              *result )
 {
    result [ 0 ] = vect.x ;
    result [ 1 ] = vect.y ;
@@ -407,8 +407,8 @@ OgreVect3ToFloatA ( const Ogre::Vector3 &vect,
 
 void
 OgreRecast::
-FloatAToOgreVect3 ( const float   *vect,
-                    Ogre::Vector3 &result )
+PositionTAToOgreVect3 ( const Real  *vect,
+                        RealVector3 &result )
 {
    result.x = vect [ 0 ] ;
    result.y = vect [ 1 ] ;
@@ -417,10 +417,10 @@ FloatAToOgreVect3 ( const float   *vect,
 
 bool
 OgreRecast::
-FindNearestPointOnNavmesh ( const Ogre::Vector3 &position,
-                            const unsigned int  include_flags,
-                            const unsigned int  exclude_flags,
-                            Ogre::Vector3       &result_point )
+FindNearestPointOnNavmesh ( const RealVector3  position,
+                            const unsigned int include_flags,
+                            const unsigned int exclude_flags,
+                            RealVector3        &result_point )
 {
    dtPolyRef navmeshPoly ;
    return FindNearestPolyOnNavmesh ( position, include_flags, exclude_flags, result_point, navmeshPoly ) ;
@@ -428,19 +428,19 @@ FindNearestPointOnNavmesh ( const Ogre::Vector3 &position,
 
 bool
 OgreRecast::
-FindNearestPolyOnNavmesh ( const Ogre::Vector3 &position,
-                           const unsigned int  include_flags,
-                           const unsigned int  exclude_flags,
-                           Ogre::Vector3       &result_point,
-                           dtPolyRef           &result_poly )
+FindNearestPolyOnNavmesh ( const RealVector3  position,
+                           const unsigned int include_flags,
+                           const unsigned int exclude_flags,
+                           RealVector3        &result_point,
+                           dtPolyRef          &result_poly )
 {
    QueryFilter.setIncludeFlags ( include_flags ) ;
    QueryFilter.setExcludeFlags ( exclude_flags ) ;
 
-   float point [ 3 ] ;
-   float found_point [ 3 ] ;
+   Real point [ 3 ] ;
+   Real found_point [ 3 ] ;
 
-   OgreVect3ToFloatA ( position, point ) ;
+   OgreVect3ToReal ( position, point ) ;
 
    dtStatus status = NavQuery.findNearestPoly ( point, PolySearchBox, &QueryFilter, &result_poly, found_point ) ;
 
@@ -451,7 +451,7 @@ FindNearestPolyOnNavmesh ( const Ogre::Vector3 &position,
    }
    else
    {
-      FloatAToOgreVect3 ( found_point, result_point ) ;
+      PositionTAToOgreVect3 ( found_point, result_point ) ;
 
       return true ;
    }
@@ -484,14 +484,14 @@ ConfigureBuildParameters ( const OgreRecastConfigParams &config_params )
    RecastConfig.minRegionArea          = config_params._getMinRegionArea () ;
    RecastConfig.mergeRegionArea        = config_params._getMergeRegionArea () ;
    RecastConfig.maxVertsPerPoly        = config_params.getVertsPerPoly () ;
-   RecastConfig.detailSampleDist       = static_cast <float> ( config_params._getDetailSampleDist () ) ;
-   RecastConfig.detailSampleMaxError   = static_cast <float> ( config_params._getDetailSampleMaxError () ) ;
+   RecastConfig.detailSampleDist       = static_cast <Real> ( config_params._getDetailSampleDist () ) ;
+   RecastConfig.detailSampleMaxError   = static_cast <Real> ( config_params._getDetailSampleMaxError () ) ;
 }
 
 FindPathReturnCode
 OgreRecast::
-FindPath ( float*             start_pos,
-           float*             end_pos,
+FindPath ( Real*             start_pos,
+           Real*             end_pos,
            const unsigned int include_flags,
            const unsigned int exclude_flags,
            int                &vertex_count )
@@ -500,8 +500,8 @@ FindPath ( float*             start_pos,
    dtPolyRef start_poly ;
    dtPolyRef end_poly ;
    int       path_poly_count = 0 ;
-   float     start_nearest_point [ 3 ] ;
-   float     end_nearest_point   [ 3 ] ;
+   Real     start_nearest_point [ 3 ] ;
+   Real     end_nearest_point   [ 3 ] ;
 
    vertex_count = 0 ;
 

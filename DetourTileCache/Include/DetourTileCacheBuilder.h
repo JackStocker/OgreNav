@@ -21,9 +21,10 @@
 
 #include "DetourAlloc.h"
 #include "DetourStatus.h"
+#include "RealTypes.h"
 
 static const int DT_TILECACHE_MAGIC = 'D'<<24 | 'T'<<16 | 'L'<<8 | 'R'; ///< 'DTLR';
-static const int DT_TILECACHE_VERSION = 1;
+static const int DT_TILECACHE_VERSION = 2;
 
 static const unsigned char DT_TILECACHE_NULL_AREA = 0;
 static const unsigned char DT_TILECACHE_WALKABLE_AREA = 63;
@@ -34,7 +35,7 @@ struct dtTileCacheLayerHeader
    int magic;								///< Data magic
    int version;							///< Data version
    int tx,ty,tlayer;
-   float bmin[3], bmax[3];
+   Real bmin[3], bmax[3];
    unsigned short hmin, hmax;				///< Height min/max range
    unsigned char width, height;			///< Dimension of the layer.
    unsigned char minx, maxx, miny, maxy;	///< Usable sub-region.
@@ -124,22 +125,22 @@ void dtFreeTileCacheContourSet(dtTileCacheAlloc* alloc, dtTileCacheContourSet* c
 dtTileCachePolyMesh* dtAllocTileCachePolyMesh(dtTileCacheAlloc* alloc);
 void dtFreeTileCachePolyMesh(dtTileCacheAlloc* alloc, dtTileCachePolyMesh* lmesh);
 
-dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-                     const float* pos, const float radius, const float height, const unsigned char areaId);
+dtStatus dtMarkCylinderArea(dtTileCacheLayer& layer, const Real* orig, const Real cs, const Real ch,
+                     const Real* pos, const Real radius, const Real height, const unsigned char areaId);
 
-dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-                  const float* bmin, const float* bmax, const unsigned char areaId);
+dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const Real* orig, const Real cs, const Real ch,
+                  const Real* bmin, const Real* bmax, const unsigned char areaId);
 
-dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const float* orig, const float cs, const float ch,
-                  const float* center, const float* halfExtents, const float* rotAux, const unsigned char areaId);
+dtStatus dtMarkBoxArea(dtTileCacheLayer& layer, const Real* orig, const Real cs, const Real ch,
+                  const Real* center, const Real* halfExtents, const Real* rotAux, const unsigned char areaId);
 
 // Copy code from RecastArea.cpp::rcMarkConvexPolyArea(), omitting parameter rcContext *, and replacing rcCompactHeightfield with dtTileCacheLayer
 dtStatus
 dtMarkPolyArea ( dtTileCacheLayer &layer,
-                 const float      *orig,
-                 const float      cs,
-                 const float      ch,
-                 const float      *verts,
+                 const Real      *orig,
+                 const Real      cs,
+                 const Real      ch,
+                 const Real      *verts,
                  const int        nverts,
                  const unsigned char area_id ) ;
 
@@ -149,7 +150,7 @@ dtStatus dtBuildTileCacheRegions(dtTileCacheAlloc* alloc,
 
 dtStatus dtBuildTileCacheContours(dtTileCacheAlloc* alloc,
                           dtTileCacheLayer& layer,
-                          const int walkableClimb, 	const float maxError,
+                          const int walkableClimb, 	const Real maxError,
                           dtTileCacheContourSet& lcset);
 
 dtStatus dtBuildTileCachePolyMesh(dtTileCacheAlloc* alloc,

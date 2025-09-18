@@ -53,7 +53,7 @@
   **/
 struct rcChunkyTriMeshNode
 {
-        float bmin[2], bmax[2];
+        Real bmin[2], bmax[2];
         int i, n;
 };
 
@@ -77,11 +77,11 @@ struct rcChunkyTriMesh
 
 /// Creates partitioned triangle mesh (AABB tree),
 /// where each node contains at max trisPerChunk triangles.
-bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
+bool rcCreateChunkyTriMesh(const Real* verts, const int* tris, int ntris,
                                                    int trisPerChunk, rcChunkyTriMesh* cm);
 
 /// Returns the chunk indices which overlap the input rectable.
-int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm, float bmin[2], float bmax[2], int* ids, const int maxIds);
+int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm, Real bmin[2], Real bmax[2], int* ids, const int maxIds);
 
 /**
   * Helper class to manage input geometry used as input for recast
@@ -112,7 +112,7 @@ public:
       * subsequent three floats are in order the x, y and z coordinates of a vert. The size of this array is
       * always a multiple of three and is exactly 3*getVertCount().
       **/
-    const float* getVerts(void) const;
+    const Real* getVerts(void) const;
 
     /**
       * The number of vertices stored in this inputGeom.
@@ -136,17 +136,17 @@ public:
       * but they are good enough for navmesh calculation. Each normal corresponds to one vertex from getVerts() with the same index.
       * The size of the normals array is 3*getVertCount().
       **/
-    const float* getNormals(void) const;
+    const Real* getNormals(void) const;
 
     /**
       * The axis aligned bounding box minimum of this input Geom.
       **/
-    const float* getMeshBoundsMin(void) const;
+    const Real* getMeshBoundsMin(void) const;
 
     /**
       * The axis aligned bounding box maximum of this input Geom.
       **/
-    const float* getMeshBoundsMax(void) const;
+    const Real* getMeshBoundsMax(void) const;
 
     /**
       * Retrieve vertex data from a mesh
@@ -206,7 +206,7 @@ private:
     /**
       * Recast input vertices
       **/
-    float* verts;
+    Real* verts;
 
     /**
       * Number of verts
@@ -231,17 +231,17 @@ private:
       * Normals are not entirely accurate but good enough for recast use.
       * Size of the normals array is 3*nverts
       **/
-    float* normals;
+    Real* normals;
 
     /**
       * Axis aligned bounding box of this inputGeom minimum.
       **/
-    float* bmin;
+    Real* bmin;
 
     /**
       * Axis aligned bounding box of this inputGeom maximum.
       **/
-    float* bmax;
+    Real* bmax;
 
     /**
       * Ogre entities this inputGeom was constructed from.

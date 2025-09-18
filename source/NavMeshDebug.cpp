@@ -73,8 +73,8 @@ AreaToColour ( const unsigned int area_id,
       }
    case POLYAREA_GATE :
       {
-         const auto  bits_set   = CountSetBits ( flags & POLYFLAGS_ALL_PLAYERS ) ;
-         const float visibility = std::min ( bits_set * 0.5f, 1.0f ) ;
+         const auto bits_set   = CountSetBits ( flags & POLYFLAGS_ALL_PLAYERS ) ;
+         const auto visibility = std::min ( bits_set * 0.5f, 1.0f ) ;
          return ( Ogre::ColourValue ( 0, 1, 1, 1 ) * visibility ) ; // cyan
       }
    case POLYAREA_SAND :
@@ -88,19 +88,19 @@ AreaToColour ( const unsigned int area_id,
    }
 }
 
-float
-PointDistanceToLine2d ( const float *point,
-                        const float *line_start,
-                        const float *line_end )
+Real
+PointDistanceToLine2d ( const Real *point,
+                        const Real *line_start,
+                        const Real *line_end )
 {
-   const float line_delta_x        = line_end [ 0 ] - line_start [ 0 ] ;
-   const float line_delta_z        = line_end [ 2 ] - line_start [ 2 ] ;
-   float       point_delta_x       = point [ 0 ] - line_start [ 0 ] ;
-   float       point_delta_z       = point [ 2 ] - line_start [ 2 ] ;
-   float       squared_line_delta  = ( ( line_delta_x * line_delta_x ) + ( line_delta_z * line_delta_z ) ) ;
-   float       squared_point_delta = ( ( line_delta_x * point_delta_x ) + ( line_delta_z * point_delta_z ) ) ;
+   const auto line_delta_x        = line_end [ 0 ] - line_start [ 0 ] ;
+   const auto line_delta_z        = line_end [ 2 ] - line_start [ 2 ] ;
+   auto       point_delta_x       = point [ 0 ] - line_start [ 0 ] ;
+   auto       point_delta_z       = point [ 2 ] - line_start [ 2 ] ;
+   auto       squared_line_delta  = ( ( line_delta_x * line_delta_x ) + ( line_delta_z * line_delta_z ) ) ;
+   auto       squared_point_delta = ( ( line_delta_x * point_delta_x ) + ( line_delta_z * point_delta_z ) ) ;
 
-   if ( squared_line_delta != 0 )
+   if ( squared_line_delta != Real (0) )
    {
       squared_point_delta /= squared_line_delta ;
    }
@@ -391,69 +391,68 @@ NavMeshDebug::
 DrawGrid ( const InputGeom &input_geom )
 {
    const Ogre::ColourValue colour ( 0, 0, 0, 0.25f ) ;
-   const float             line_width = 1.0f ;
    const float             cell_size  = 0.3f ;
    const float             tile_size  = 40 ;
 
-   const float *bmin       = input_geom.getMeshBoundsMin () ;
-   const float *bmax       = input_geom.getMeshBoundsMax () ;
+   const auto* bmin       = input_geom.getMeshBoundsMin () ;
+   const auto* bmax       = input_geom.getMeshBoundsMax () ;
    int         grid_width  = 0 ;
    int         grid_height = 0 ;
 
-   rcCalcGridSize ( bmin, bmax, cell_size, &grid_width, &grid_height ) ;
+   rcCalcGridSize ( bmin, bmax, Real (cell_size), &grid_width, &grid_height ) ;
 
-   const float start_x      = bmin [ 0 ] ;
-   const float start_y      = bmin [ 1 ] ;
-   const float start_z      = bmin [ 2 ] ;
+   const auto  start_x      = bmin [ 0 ] ;
+   const auto  start_y      = bmin [ 1 ] ;
+   const auto  start_z      = bmin [ 2 ] ;
    const int   column_count = ( grid_width + static_cast <int> ( tile_size ) -1 ) / static_cast <int> ( tile_size ) ;
    const int   row_count    = ( grid_height + static_cast <int> ( tile_size ) -1 ) / static_cast <int> ( tile_size ) ;
-   const float element_size = tile_size * cell_size ;
+   const auto  element_size = tile_size * cell_size ;
 
-   std::vector <Ogre::Vector3> points ;
+   std::vector <RealVector3> points ;
 
    for ( auto row_index = 0 ; row_index <= row_count ; ++row_index )
    {
-      points.push_back ( Ogre::Vector3 ( start_x,                                   start_y, start_z + ( row_index * element_size ) ) ) ;
-      points.push_back ( Ogre::Vector3 ( start_x + ( column_count * element_size ), start_y, start_z + ( row_index * element_size ) ) ) ;
+      points.push_back ( RealVector3 ( start_x,                                   start_y, start_z + ( row_index * element_size ) ) ) ;
+      points.push_back ( RealVector3 ( start_x + ( column_count * element_size ), start_y, start_z + ( row_index * element_size ) ) ) ;
    }
 
    for ( auto column_index = 0 ; column_index <= column_count ; ++column_index )
    {
-      points.push_back ( Ogre::Vector3 ( start_x + ( column_index * element_size ), start_y, start_z                                ) ) ;
-      points.push_back ( Ogre::Vector3 ( start_x + ( column_index * element_size ), start_y, start_z + ( row_count * element_size ) ) ) ;
+      points.push_back ( RealVector3 ( start_x + ( column_index * element_size ), start_y, start_z ) ) ;
+      points.push_back ( RealVector3 ( start_x + ( column_index * element_size ), start_y, start_z + ( row_count * element_size ) ) ) ;
    }
 
-   GridDebugId = CurrentDebugManager.CreateDebugPoly ( points, 0.0f, colour, line_width ) ;
+   GridDebugId = CurrentDebugManager.CreateDebugPoly ( points, Real ( 0 ), colour ) ;
 }
 
 void
 NavMeshDebug::
 DrawInputMesh ( const InputGeom &input_geom )
 {
-   const float *verts             = input_geom.getVerts () ;
-   const int   *tris              = input_geom.getTris () ;
-   const float *normals           = input_geom.getNormals () ;
-   const int   ntris              = input_geom.getTriCount () ;
-   const float walkableSlopeAngle = 60.0f ;
+   const auto* verts             = input_geom.getVerts () ;
+   const auto* tris              = input_geom.getTris () ;
+   const auto* normals           = input_geom.getNormals () ;
+   const int   ntris             = input_geom.getTriCount () ;
+   const auto  walkableSlopeAngle = 60.0f ;
 
    if ( verts &&
         tris &&
         normals )
    {
-      const float walkableThr = cosf ( Ogre::Math::DegreesToRadians ( walkableSlopeAngle ) ) ;
-      const auto  unwalkable  = Ogre::ColourValue ( 0.75f, 0.5f, 0, 1.0f ) ;
+      const auto walkableThr = cosf ( Ogre::Math::DegreesToRadians ( walkableSlopeAngle ) ) ;
+      const auto unwalkable  = Ogre::ColourValue ( 0.75f, 0.5f, 0, 1.0f ) ;
 
       std::vector <DebugPolyTriangle> triangle_list ;
 
       for ( auto triangle_index = 0 ; triangle_index < ntris * 3 ; triangle_index += 3 )
       {
-         std::array <Ogre::Vector3, 3> points ;
+         std::array <RealVector3, 3> points ;
          Ogre::ColourValue             colour = Ogre::ColourValue::Black ;
 
-         const float *norm = &normals [ triangle_index ] ;
-         auto        a     = static_cast <unsigned char> ( 220 * ( 2 + norm [ 0 ] + norm [ 1 ] ) / 4 ) / 255.0f ;
+         const auto* norm = &normals [ triangle_index ] ;
+         auto        a     = static_cast <unsigned char> ( ( Real(220) * Real( Real(2) + norm [ 0 ] + norm [ 1 ] ) / Real(4) ) ) / 255.0f ;
 
-         if ( norm [ 1 ] < walkableThr )
+         if ( norm [ 1 ] < Real ( walkableThr ) )
          {
             colour = Ogre::Math::lerp ( Ogre::ColourValue ( a, a, a, 1.0f ), unwalkable, 0.25f ) ;
          }
@@ -464,15 +463,15 @@ DrawInputMesh ( const InputGeom &input_geom )
 
          colour.a = 0.75 ;
 
-         const float *va = &verts [ tris [ triangle_index + 0 ] * 3 ] ;
-         const float *vb = &verts [ tris [ triangle_index + 1 ] * 3 ] ;
-         const float *vc = &verts [ tris [ triangle_index + 2 ] * 3 ] ;
+         const auto* va = &verts [ tris [ triangle_index + 0 ] * 3 ] ;
+         const auto* vb = &verts [ tris [ triangle_index + 1 ] * 3 ] ;
+         const auto* vc = &verts [ tris [ triangle_index + 2 ] * 3 ] ;
 
-         points [ 0 ] = Ogre::Vector3 ( va [ 0 ], va [ 1 ] + 0.1f, va [ 2 ] ) ;
-         points [ 1 ] = Ogre::Vector3 ( vb [ 0 ], vb [ 1 ] + 0.1f, vb [ 2 ] ) ;
-         points [ 2 ] = Ogre::Vector3 ( vc [ 0 ], vc [ 1 ] + 0.1f, vc [ 2 ] ) ;
+         points [ 0 ] = RealVector3 ( va [ 0 ], va [ 1 ] + Real ( 0.1f ), va [ 2 ] ) ;
+         points [ 1 ] = RealVector3 ( vb [ 0 ], vb [ 1 ] + Real ( 0.1f ), vb [ 2 ] ) ;
+         points [ 2 ] = RealVector3 ( vc [ 0 ], vc [ 1 ] + Real ( 0.1f ), vc [ 2 ] ) ;
 
-         DebugPolyTriangle new_triangle = { points, Ogre::Vector3 ( norm [ 0 ], norm [ 1 ], norm [ 2 ] ), colour } ;
+         DebugPolyTriangle new_triangle = { points, RealVector3 ( norm [ 0 ], norm [ 1 ], norm [ 2 ] ), colour } ;
          triangle_list.emplace_back ( new_triangle ) ;
       }
 
@@ -484,9 +483,9 @@ void
 NavMeshDebug::
 DrawHeightField ( const rcHeightfield &height_field )
 {
-   const float* orig = height_field.bmin ;
-   const float cs = height_field.cs ;
-   const float ch = height_field.ch ;
+   const auto* orig = height_field.bmin ;
+   const auto cs = height_field.cs ;
+   const auto ch = height_field.ch ;
 
    const int w = height_field.width ;
    const int h = height_field.height ;
@@ -495,18 +494,18 @@ DrawHeightField ( const rcHeightfield &height_field )
    {
       for ( int x = 0 ; x < w ; ++x )
       {
-         float fx = orig [ 0 ] + x * cs ;
-         float fz = orig [ 2 ] + y * cs ;
+         auto fx = orig [ 0 ] + Real (x) * cs ;
+         auto fz = orig [ 2 ] + Real (y) * cs ;
          const rcSpan* s = height_field.spans [ x + y * w ] ;
 
          while ( s )
          {
-            Ogre::Vector3 min ( fx, orig [ 1 ] + s->smin * ch, fz ) ;
-            Ogre::Vector3 max ( fx + cs, orig [ 1 ] + s->smax * ch, fz + cs ) ;
+            RealVector3 min ( fx      , orig [ 1 ] + Real (s->smin) * ch, fz ) ;
+            RealVector3 max ( fx + cs , orig [ 1 ] + Real (s->smax) * ch, fz + cs ) ;
 
-            if ( std::abs ( min.y ) > 0.1f )
+            if ( r::abs ( min.y ) > Real ( 0.1f ) )
             {
-               CurrentDebugManager.CreateDebugAABB ( min, max, Ogre::ColourValue ( 0.5f, 0.5f, 0.5f, 0.75f ) ) ;
+               //CurrentDebugManager.CreateDebugAABB ( min, max, Ogre::ColourValue ( 0.5f, 0.5f, 0.5f, 0.75f ) ) ;
             }
 
             s = s->next;
@@ -581,13 +580,13 @@ DrawTile ( const dtPolyRef      base_polyref,
    debug_tile.PolygonList.push_back ( DrawTilePolys ( base_polyref, query, tile ) ) ;
 
    // Draw inter poly boundaries
-   debug_tile.PolygonList.push_back ( DrawTilePolyBoundaries ( tile, Ogre::ColourValue ( 0, 0.188f, 0.25f, 0.125f ), 1.5f, true ) ) ;
+   debug_tile.PolygonList.push_back ( DrawTilePolyBoundaries ( tile, Ogre::ColourValue ( 0, 0.188f, 0.25f, 0.125f ), true ) ) ;
 
    // Draw outer poly boundaries
-   debug_tile.PolygonList.push_back ( DrawTilePolyBoundaries ( tile, Ogre::ColourValue ( 0, 0.188f, 0.25f, 0.86f ), 2.5f, false ) ) ;
+   debug_tile.PolygonList.push_back ( DrawTilePolyBoundaries ( tile, Ogre::ColourValue ( 0, 0.188f, 0.25f, 0.86f ), false ) ) ;
 
    // Draw vertex 'dots'
-   debug_tile.DotList.push_back ( DrawTileVertices ( tile, Ogre::ColourValue ( 0, 0, 0, 0.77f ), 0.25f ) ) ;
+   debug_tile.DotList.push_back ( DrawTileVertices ( tile, Ogre::ColourValue ( 0, 0, 0, 0.77f ), Real ( 0.25f ) ) ) ;
 }
 
 std::vector <DebugId>
@@ -706,10 +705,9 @@ DebugId
 NavMeshDebug::
 DrawTilePolyBoundaries ( const dtMeshTile        &tile,
                          const Ogre::ColourValue &colour,
-                         const float             line_width,
                          bool                    draw_areas )
 {
-   const float                 distance_threshold = 0.01f * 0.01f ;
+   const auto                  distance_threshold = Real ( 0.01f * 0.01f ) ;
    std::vector <DebugPolyLine> debug_poly_list ;
 
    for ( auto poly_index = 0 ; poly_index < tile.header->polyCount ; ++poly_index )
@@ -721,11 +719,11 @@ DrawTilePolyBoundaries ( const dtMeshTile        &tile,
          DebugPolyLine debug_poly_line ;
          debug_poly_line.Colour = DebugManager::WHITE ;
 
-         std::vector <Ogre::Vector3> points ;
+         std::vector <RealVector3> points ;
 
          for ( auto vert_index = 0U ; vert_index < poly->vertCount ; ++vert_index )
          {
-            const float* poly_start = &tile.verts [ poly->verts [ vert_index ] * 3 ] ;
+            const auto* poly_start = &tile.verts [ poly->verts [ vert_index ] * 3 ] ;
 
             points.emplace_back ( poly_start [ 0 ], poly_start [ 1 ], poly_start [ 2 ] ) ;
          }
@@ -779,15 +777,15 @@ DrawTilePolyBoundaries ( const dtMeshTile        &tile,
             if ( ! draw_areas ||
                  ( poly->neis [ poly_vertex_index ] == 0 ) )
             {
-               const float *poly_start = &tile.verts [ poly->verts [ poly_vertex_index ] * 3 ] ;
-               const float *poly_end   = &tile.verts [ poly->verts [ ( poly_vertex_index + 1 ) % poly->vertCount ] * 3 ] ;
+               const auto* poly_start = &tile.verts [ poly->verts [ poly_vertex_index ] * 3 ] ;
+               const auto* poly_end   = &tile.verts [ poly->verts [ ( poly_vertex_index + 1 ) % poly->vertCount ] * 3 ] ;
 
                // Draw detail mesh edges which align with the actual poly edge.
                // This is really slow.
                for ( auto triangle_index = 0 ; triangle_index < poly_detail->triCount ; ++triangle_index )
                {
                   const unsigned char *triangle = &tile.detailTris [ ( poly_detail->triBase + triangle_index ) * 4 ] ;
-                  const float         *triangle_vertex [ 3 ] ;
+                  const Real         *triangle_vertex [ 3 ] ;
 
                   for ( auto vertex_element = 0 ; vertex_element < 3 ; ++vertex_element )
                   {
@@ -808,8 +806,8 @@ DrawTilePolyBoundaries ( const dtMeshTile        &tile,
                         if ( ( PointDistanceToLine2d ( triangle_vertex [ next_vertex_element_index ], poly_start, poly_end ) < distance_threshold ) &&
                              ( PointDistanceToLine2d ( triangle_vertex [ vertex_element_index ],      poly_start, poly_end ) < distance_threshold ) )
                         {
-                           debug_poly_line.Points.push_back ( Ogre::Vector3 ( triangle_vertex [ next_vertex_element_index ] [ 0 ], triangle_vertex [ next_vertex_element_index ] [ 1 ], triangle_vertex [ next_vertex_element_index ] [ 2 ] ) ) ;
-                           debug_poly_line.Points.push_back ( Ogre::Vector3 ( triangle_vertex [ vertex_element_index ] [ 0 ],      triangle_vertex [ vertex_element_index ] [ 1 ],      triangle_vertex [ vertex_element_index ] [ 2 ] ) ) ;
+                           debug_poly_line.Points.push_back ( RealVector3 ( triangle_vertex [ next_vertex_element_index ] [ 0 ], triangle_vertex [ next_vertex_element_index ] [ 1 ], triangle_vertex [ next_vertex_element_index ] [ 2 ] ) ) ;
+                           debug_poly_line.Points.push_back ( RealVector3 ( triangle_vertex [ vertex_element_index ] [ 0 ],      triangle_vertex [ vertex_element_index ] [ 1 ],       triangle_vertex [ vertex_element_index ] [ 2 ] ) ) ;
                         }
                      }
                   }
@@ -821,23 +819,23 @@ DrawTilePolyBoundaries ( const dtMeshTile        &tile,
       }
    }
 
-   return CurrentDebugManager.CreateDebugPolys ( debug_poly_list, line_width ) ;
+   return CurrentDebugManager.CreateDebugPolys ( debug_poly_list ) ;
 }
 
 DebugId
 NavMeshDebug::
 DrawTileVertices ( const dtMeshTile        &tile,
                    const Ogre::ColourValue &colour,
-                   const float             half_size )
+                   const Real              half_size )
 {
    // Draw vertex 'dots'
    std::vector <DebugPolyTriangle> triangle_list ;
 
    for ( auto vert_index = 0 ; vert_index < tile.header->vertCount ; ++vert_index )
    {
-      const float *vertex = &tile.verts [ vert_index * 3 ] ;
+      const auto* vertex = &tile.verts [ vert_index * 3 ] ;
 
-      auto dot_triangle_list = GenerateDot ( Ogre::Vector3 ( vertex [ 0 ], vertex [ 1 ], vertex [ 2 ] ), colour, half_size ) ;
+      auto dot_triangle_list = GenerateDot ( RealVector3 ( vertex [ 0 ], vertex [ 1 ], vertex [ 2 ] ), colour, half_size ) ;
       triangle_list.insert ( triangle_list.begin (), dot_triangle_list.begin (), dot_triangle_list.end () ) ;
    }
 
@@ -850,78 +848,79 @@ GeneratorBoxForObstacle ( const dtTileCacheObstacle &obstacle )
 {
    if ( obstacle.type == DT_OBSTACLE_CYLINDER )
    {
-      return CurrentDebugManager.CreateDebugCircle ( Ogre::Vector3 ( obstacle.cylinder.pos [ 0 ],
-                                                                     obstacle.cylinder.pos [ 1 ],
-                                                                     obstacle.cylinder.pos [ 2 ] ),
+      return CurrentDebugManager.CreateDebugCircle ( RealVector3 ( obstacle.cylinder.pos [ 0 ],
+                                                                   obstacle.cylinder.pos [ 1 ],
+                                                                   obstacle.cylinder.pos [ 2 ] ),
                                                      obstacle.cylinder.radius,
                                                      Ogre::ColourValue::Black ) ;
    }
    else if ( obstacle.type == DT_OBSTACLE_BOX )
    {
-      Ogre::Vector3 min ;
-      Ogre::Vector3 max ;
+      RealVector3 min ;
+      RealVector3 max ;
 
       //OgreRecast::FloatAToOgreVect3 ( obstacle.box.bmin, min ) ;
       //OgreRecast::FloatAToOgreVect3 ( obstacle.box.bmax, max ) ;
 
-      OgreRecast::FloatAToOgreVect3 ( obstacle.BoundsMin, min ) ;
-      OgreRecast::FloatAToOgreVect3 ( obstacle.BoundsMax, max ) ;
+      OgreRecast::PositionTAToOgreVect3 ( obstacle.BoundsMin, min ) ;
+      OgreRecast::PositionTAToOgreVect3 ( obstacle.BoundsMax, max ) ;
 
-      return CurrentDebugManager.CreateDebugAABB ( min, max, Ogre::ColourValue ( 0.5f, 0.5f, 0.5f, 0.75f ) ) ;
+      //return CurrentDebugManager.CreateDebugAABB ( min, max, Ogre::ColourValue ( 0.5f, 0.5f, 0.5f, 0.75f ) ) ;
+      return INVALID_DEBUG_ID ;
    }
    else if ( obstacle.type == DT_OBSTACLE_ORIENTED_BOX )
    {
-      Ogre::Vector3 centre ;
-      Ogre::Vector3 half_extents ;
+      RealVector3 centre ;
+      RealVector3 half_extents ;
 
-      OgreRecast::FloatAToOgreVect3 ( obstacle.orientedBox.center,      centre ) ;
-      OgreRecast::FloatAToOgreVect3 ( obstacle.orientedBox.halfExtents, half_extents ) ;
+      OgreRecast::PositionTAToOgreVect3 ( obstacle.orientedBox.center,      centre ) ;
+      OgreRecast::PositionTAToOgreVect3 ( obstacle.orientedBox.halfExtents, half_extents ) ;
 
-      float left  = -half_extents.x ;
-      float far_   = -half_extents.z ;
-      float right = +half_extents.x ;
-      float near_  = +half_extents.z ;
+      auto left   = -half_extents.x ;
+      auto far_   = -half_extents.z ;
+      auto right  = half_extents.x ;
+      auto near_  = half_extents.z ;
 
-      auto rotate_point = [] ( float &x,
-                               float &z,
-                               const float rot_aux [ 2 ] )
+      auto rotate_point = [] ( Real  &x,
+                               Real  &z,
+                               const Real rot_aux [ 2 ] )
                                {
-                                  float x2   = 2.0f * x ;
-                                  float z2   = 2.0f * z ;
-                                  x = ( rot_aux [ 1 ] * x2 ) + ( rot_aux [ 0 ] * z2 ) ;
-                                  z = ( rot_aux [ 1 ] * z2 ) - ( rot_aux [ 0 ] * x2 ) ;
+                                  auto x2   = 2.0f * x ;
+                                  auto z2   = 2.0f * z ;
+                                  x = ( rot_aux [ 1 ] ) * x2 + ( rot_aux [ 0 ] ) * z2 ;
+                                  z = ( rot_aux [ 1 ] ) * z2 - ( rot_aux [ 0 ] ) * x2 ;
                                } ;
 
       rotate_point ( left,  far_,  obstacle.orientedBox.rotAux ) ;
       rotate_point ( right, near_, obstacle.orientedBox.rotAux ) ;
 
-      Ogre::Vector3 far_left_bottom   = centre + Ogre::Vector3 ( left,  -half_extents.y, far_ ) ;
-      Ogre::Vector3 far_right_bottom  = centre + Ogre::Vector3 ( right, -half_extents.y, far_ ) ;
-      Ogre::Vector3 near_left_bottom  = centre + Ogre::Vector3 ( left,  -half_extents.y, near_ ) ;
-      Ogre::Vector3 near_right_bottom = centre + Ogre::Vector3 ( right, -half_extents.y, near_ ) ;
-      Ogre::Vector3 far_left_top      = centre + Ogre::Vector3 ( left,  +half_extents.y, far_ ) ;
-      Ogre::Vector3 far_right_top     = centre + Ogre::Vector3 ( right, +half_extents.y, far_ ) ;
-      Ogre::Vector3 near_left_top     = centre + Ogre::Vector3 ( left,  +half_extents.y, near_ ) ;
-      Ogre::Vector3 near_right_top    = centre + Ogre::Vector3 ( right, +half_extents.y, near_ ) ;
+      auto far_left_bottom   = centre + RealVector3 ( left,  -half_extents.y, far_ ) ;
+      auto far_right_bottom  = centre + RealVector3 ( right, -half_extents.y, far_ ) ;
+      auto near_left_bottom  = centre + RealVector3 ( left,  -half_extents.y, near_ ) ;
+      auto near_right_bottom = centre + RealVector3 ( right, -half_extents.y, near_ ) ;
+      auto far_left_top      = centre + RealVector3 ( left,  half_extents.y, far_ ) ;
+      auto far_right_top     = centre + RealVector3 ( right, half_extents.y, far_ ) ;
+      auto near_left_top     = centre + RealVector3 ( left,  half_extents.y, near_ ) ;
+      auto near_right_top    = centre + RealVector3 ( right, half_extents.y, near_ ) ;
 
-      std::vector <Ogre::Vector3> point_list = { far_left_bottom, far_left_top, far_right_top, far_right_bottom, // Far side
+      std::vector <RealVector3> point_list = { far_left_bottom, far_left_top, far_right_top, far_right_bottom, // Far side
                                                  far_right_top, near_right_top, near_right_bottom, // Right side
                                                  near_right_top, near_left_top, near_left_bottom, // Near side
                                                  near_left_top, far_left_top } ; // Left size
 
-      return CurrentDebugManager.CreateDebugPoly ( point_list, 0.1f, Ogre::ColourValue::Black ) ;
+      return CurrentDebugManager.CreateDebugPoly ( point_list, Real ( 0.1f ), Ogre::ColourValue::Black ) ;
    }
    else if ( obstacle.type == DT_OBSTACLE_CONVEX_POLYGON )
    {
       SoftAssert ( obstacle.convexPolygon.nverts == 4 ) ;
 
-      std::vector <Ogre::Vector3> point_list = { Ogre::Vector3 ( obstacle.convexPolygon.verts [ 0 ], obstacle.convexPolygon.verts [ 1 ], obstacle.convexPolygon.verts [ 2 ] ),
-                                                 Ogre::Vector3 ( obstacle.convexPolygon.verts [ 3 ], obstacle.convexPolygon.verts [ 4 ], obstacle.convexPolygon.verts [ 5 ] ),
-                                                 Ogre::Vector3 ( obstacle.convexPolygon.verts [ 6 ], obstacle.convexPolygon.verts [ 7 ], obstacle.convexPolygon.verts [ 8 ] ),
-                                                 Ogre::Vector3 ( obstacle.convexPolygon.verts [ 9 ], obstacle.convexPolygon.verts [ 10 ], obstacle.convexPolygon.verts [ 11 ] ),
-                                                 Ogre::Vector3 ( obstacle.convexPolygon.verts [ 0 ], obstacle.convexPolygon.verts [ 1 ], obstacle.convexPolygon.verts [ 2 ] ) } ;
+      std::vector <RealVector3> point_list = { RealVector3 ( obstacle.convexPolygon.verts[ 0 ] , obstacle.convexPolygon.verts[ 1 ], obstacle.convexPolygon.verts[ 2 ] ),
+                                               RealVector3 ( obstacle.convexPolygon.verts[ 3 ] , obstacle.convexPolygon.verts[ 4 ], obstacle.convexPolygon.verts[ 5 ] ),
+                                               RealVector3 ( obstacle.convexPolygon.verts[ 6 ] , obstacle.convexPolygon.verts[ 7 ], obstacle.convexPolygon.verts[ 8 ] ),
+                                               RealVector3 ( obstacle.convexPolygon.verts[ 9 ] , obstacle.convexPolygon.verts[ 10 ], obstacle.convexPolygon.verts[ 11 ] ),
+                                               RealVector3 ( obstacle.convexPolygon.verts [ 0 ] , obstacle.convexPolygon.verts [ 1 ], obstacle.convexPolygon.verts [ 2 ] ) } ;
 
-      return CurrentDebugManager.CreateDebugPoly ( point_list, 0.1f, Ogre::ColourValue::Black ) ;
+      return CurrentDebugManager.CreateDebugPoly ( point_list, Real ( 0.1f ), Ogre::ColourValue::Black ) ;
    }
    else
    {
@@ -944,25 +943,25 @@ GenerateTriangleListFromPoly ( const dtMeshTile        &tile,
    for ( auto triangle_index = 0 ; triangle_index < poly_detail->triCount ; ++triangle_index )
    {
       const unsigned char           *triangle = &tile.detailTris [ ( poly_detail->triBase + triangle_index ) * 4 ] ;
-      std::array <Ogre::Vector3, 3> points ;
+      std::array <RealVector3, 3> points ;
 
       for ( auto element_index = 0 ; element_index < 3 ; ++element_index )
       {
          if ( triangle [ element_index ] < poly.vertCount )
          {
-            float *vertex = &tile.verts [ poly.verts [ triangle [ element_index ] ] * 3 ] ;
+            Real *vertex = &tile.verts [ poly.verts [ triangle [ element_index ] ] * 3 ] ;
 
-            points [ element_index ] = Ogre::Vector3 ( vertex [ 0 ], vertex [ 1 ], vertex [ 2 ] ) ;
+            points [ element_index ] = RealVector3 ( vertex [ 0 ], vertex [ 1 ], vertex [ 2 ] ) ;
          }
          else
          {
-            float *vertex = &tile.detailVerts [ ( poly_detail->vertBase + triangle [ element_index ] - poly.vertCount ) * 3 ] ;
+            Real *vertex = &tile.detailVerts [ ( poly_detail->vertBase + triangle [ element_index ] - poly.vertCount ) * 3 ] ;
 
-            points [ element_index ] = Ogre::Vector3 ( vertex [ 0 ], vertex [ 1 ], vertex [ 2 ] ) ;
+            points [ element_index ] = RealVector3 ( vertex [ 0 ], vertex [ 1 ], vertex [ 2 ] ) ;
          }
       }
 
-      DebugPolyTriangle new_triangle = { points, Ogre::Vector3::UNIT_Y, colour } ;
+      DebugPolyTriangle new_triangle = { points, RealVector3::UNIT_Y, colour } ;
       triangle_list.emplace_back ( new_triangle ) ;
    }
 
@@ -971,22 +970,22 @@ GenerateTriangleListFromPoly ( const dtMeshTile        &tile,
 
 std::vector <DebugPolyTriangle>
 NavMeshDebug::
-GenerateDot ( const Ogre::Vector3     &position,
+GenerateDot ( const RealVector3       &position,
               const Ogre::ColourValue &colour,
-              const float             half_size )
+              const Real              half_size )
 {
    std::vector <DebugPolyTriangle> dot_triangle_list ;
 
-   const Ogre::Vector3 far_left   ( position.x - half_size, position.y + 0.1f, position.z - half_size ) ;
-   const Ogre::Vector3 far_right  ( position.x + half_size, position.y + 0.1f, position.z - half_size ) ;
-   const Ogre::Vector3 near_left  ( position.x - half_size, position.y + 0.1f, position.z + half_size ) ;
-   const Ogre::Vector3 near_right ( position.x + half_size, position.y + 0.1f, position.z + half_size ) ;
+   const RealVector3 far_left   ( position.x - half_size, position.y + Real ( 0.1f ), position.z - half_size ) ;
+   const RealVector3 far_right  ( position.x + half_size, position.y + Real ( 0.1f ), position.z - half_size ) ;
+   const RealVector3 near_left  ( position.x - half_size, position.y + Real ( 0.1f ), position.z + half_size ) ;
+   const RealVector3 near_right ( position.x + half_size, position.y + Real ( 0.1f ), position.z + half_size ) ;
 
-   std::array <Ogre::Vector3, 3> first_half_points  = { far_left, near_right, far_right } ;
-   std::array <Ogre::Vector3, 3> second_half_points = { far_left, near_left, near_right } ;
+   std::array <RealVector3, 3> first_half_points  = { far_left, near_right, far_right } ;
+   std::array <RealVector3, 3> second_half_points = { far_left, near_left, near_right } ;
 
-   DebugPolyTriangle first_triangle  = { first_half_points,  Ogre::Vector3::UNIT_Y, colour } ;
-   DebugPolyTriangle second_triangle = { second_half_points, Ogre::Vector3::UNIT_Y, colour } ;
+   DebugPolyTriangle first_triangle  = { first_half_points,  RealVector3::UNIT_Y, colour } ;
+   DebugPolyTriangle second_triangle = { second_half_points, RealVector3::UNIT_Y, colour } ;
 
    dot_triangle_list.push_back ( first_triangle ) ;
    dot_triangle_list.push_back ( second_triangle ) ;

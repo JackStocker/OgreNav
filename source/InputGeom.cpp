@@ -128,7 +128,7 @@ void InputGeom::convertOgreEntities()
     }
 
     // DECLARE RECAST DATA BUFFERS USING THE INFO WE GRABBED ABOVE
-    verts = new float[nverts*3];// *3 as verts holds x,y,&z for each verts in the array
+    verts = new Real[nverts*3];// *3 as verts holds x,y,&z for each verts in the array
     tris = new int[ntris];// tris in recast is really indices like ogre
 
     //convert index count into tri count
@@ -147,9 +147,9 @@ void InputGeom::convertOgreEntities()
         for (size_t j = 0 ; j < meshVertexCount[i] ; j++)
         {
             vertexPos = transform*meshVertices[i][j];
-            verts[vertsIndex] = vertexPos.x;
-            verts[vertsIndex+1] = vertexPos.y;
-            verts[vertsIndex+2] = vertexPos.z;
+            verts[vertsIndex] = Real ( vertexPos.x);
+            verts[vertsIndex+1] = Real (vertexPos.y);
+            verts[vertsIndex+2] = Real (vertexPos.z);
             vertsIndex+=3;
         }
 
@@ -174,27 +174,27 @@ void InputGeom::convertOgreEntities()
     // but it is used, Ogre handles its own Normal data for rendering, this is not related
     // to Ogre at all ( its also not correct lol )
     // TODO : fix this
-    normals = new float[ntris*3];
+    normals = new Real[ntris*3];
     for (int i = 0; i < ntris*3; i += 3)
     {
-        const float* v0 = &verts[tris[i]*3];
-        const float* v1 = &verts[tris[i+1]*3];
-        const float* v2 = &verts[tris[i+2]*3];
-        float e0[3], e1[3];
+        const Real* v0 = &verts[tris[i]*3];
+        const Real* v1 = &verts[tris[i+1]*3];
+        const Real* v2 = &verts[tris[i+2]*3];
+        Real e0[3], e1[3];
         for (int j = 0; j < 3; ++j)
         {
             e0[j] = (v1[j] - v0[j]);
             e1[j] = (v2[j] - v0[j]);
         }
-        float* n = &normals[i];
+        Real* n = &normals[i];
         n[0] = ((e0[1]*e1[2]) - (e0[2]*e1[1]));
         n[1] = ((e0[2]*e1[0]) - (e0[0]*e1[2]));
         n[2] = ((e0[0]*e1[1]) - (e0[1]*e1[0]));
-
-        float d = sqrtf(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
-        if (d > 0)
+    
+        Real d = fixedmath::sqrt(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
+        if (d > Real ( 0))
         {
-            d = 1.0f/d;
+            d = Real ( 1.0f)/d;
             n[0] *= d;
             n[1] *= d;
             n[2] *= d;
@@ -208,8 +208,8 @@ void InputGeom::calculateExtents()
     Ogre::Aabb srcMeshBB = ent->getWorldAabbUpdated ();
     Ogre::Matrix4 transform = mReferenceNode->_getFullTransformUpdated ().inverse() * ent->getParentSceneNode()->_getFullTransformUpdated();
     srcMeshBB.transformAffine(transform);
-    Ogre::Vector3 min = srcMeshBB.getMinimum();
-    Ogre::Vector3 max = srcMeshBB.getMaximum();
+    RealVector3 min = {Real(srcMeshBB.getMinimum().x), Real(srcMeshBB.getMinimum().y), Real(srcMeshBB.getMinimum().z)};
+    RealVector3 max = {Real(srcMeshBB.getMaximum().x), Real(srcMeshBB.getMaximum().y), Real(srcMeshBB.getMaximum().z)};
 
     // Calculate min and max from all entities
     for(auto iter = mSrcMeshes.begin(); iter != mSrcMeshes.end(); iter++) {
@@ -220,7 +220,7 @@ void InputGeom::calculateExtents()
 
         Ogre::Aabb srcMeshBB = ent->getWorldAabbUpdated ();
         srcMeshBB.transformAffine(transform);
-        Ogre::Vector3 min2 = srcMeshBB.getMinimum();
+        RealVector3 min2 = {Real(srcMeshBB.getMinimum ().x), Real ( srcMeshBB.getMinimum ().y), Real ( srcMeshBB.getMinimum ().z)};
         if(min2.x < min.x)
             min.x = min2.x;
         if(min2.y < min.y)
@@ -228,7 +228,7 @@ void InputGeom::calculateExtents()
         if(min2.z < min.z)
             min.z = min2.z;
 
-        Ogre::Vector3 max2 = srcMeshBB.getMaximum();
+        RealVector3 max2 = { Real ( srcMeshBB.getMaximum ().x), Real ( srcMeshBB.getMaximum ().y), Real ( srcMeshBB.getMaximum ().z)};
         if(max2.x > max.x)
             max.x = max2.x;
         if(max2.y > max.y)
@@ -238,19 +238,19 @@ void InputGeom::calculateExtents()
     }
 
     if(!bmin)
-        bmin = new float[3];
+        bmin = new Real[3];
     if(!bmax)
-        bmax = new float[3];
-    OgreRecast::OgreVect3ToFloatA(min, bmin);
-    OgreRecast::OgreVect3ToFloatA(max, bmax);
+        bmax = new Real[3];
+    OgreRecast::OgreVect3ToReal(min, bmin);
+    OgreRecast::OgreVect3ToReal(max, bmax);
 }
 
-const float* InputGeom::getMeshBoundsMax() const
+const Real* InputGeom::getMeshBoundsMax() const
 {
     return bmax;
 }
 
-const float* InputGeom::getMeshBoundsMin() const
+const Real* InputGeom::getMeshBoundsMin() const
 {
     return bmin;
 }
@@ -270,12 +270,12 @@ const int* InputGeom::getTris() const
     return tris;
 }
 
-const float* InputGeom::getVerts() const
+const Real* InputGeom::getVerts() const
 {
     return verts;
 }
 
-const float* InputGeom::getNormals() const
+const Real* InputGeom::getNormals() const
 {
    return normals;
 }
@@ -688,8 +688,8 @@ void InputGeom::getManualMeshInformation(const Ogre::ManualObject *manual,
 
 struct BoundsItem
 {
-    float bmin[2];
-    float bmax[2];
+    Real bmin[2];
+    Real bmax[2];
     int i;
 };
 
@@ -717,7 +717,7 @@ static int compareItemY(const void* va, const void* vb)
 
 static void calcExtends(const BoundsItem* items, const int /*nitems*/,
                         const int imin, const int imax,
-                        float* bmin, float* bmax)
+                        Real* bmin, Real* bmax)
 {
     bmin[0] = items[imin].bmin[0];
     bmin[1] = items[imin].bmin[1];
@@ -736,7 +736,7 @@ static void calcExtends(const BoundsItem* items, const int /*nitems*/,
     }
 }
 
-inline int longestAxis(float x, float y)
+inline int longestAxis(Real x, Real y)
 {
     return y > x ? 1 : 0;
 }
@@ -804,7 +804,7 @@ static void subdivide(BoundsItem* items, int nitems, int imin, int imax, int tri
     }
 }
 
-bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
+bool rcCreateChunkyTriMesh(const Real* verts, const int* tris, int ntris,
                            int trisPerChunk, rcChunkyTriMesh* cm)
 {
     int nchunks = (ntris + trisPerChunk-1) / trisPerChunk;
@@ -834,7 +834,7 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
         it.bmin[1] = it.bmax[1] = verts[t[0]*3+2];
         for (int j = 1; j < 3; ++j)
         {
-            const float* v = &verts[t[j]*3];
+            const Real* v = &verts[t[j]*3];
             if (v[0] < it.bmin[0]) it.bmin[0] = v[0];
             if (v[2] < it.bmin[1]) it.bmin[1] = v[2];
 
@@ -866,8 +866,8 @@ bool rcCreateChunkyTriMesh(const float* verts, const int* tris, int ntris,
 }
 
 
-inline bool checkOverlapRect(const float amin[2], const float amax[2],
-                             const float bmin[2], const float bmax[2])
+inline bool checkOverlapRect(const Real amin[2], const Real amax[2],
+                             const Real bmin[2], const Real bmax[2])
 {
     bool overlap = true;
     overlap = (amin[0] > bmax[0] || amax[0] < bmin[0]) ? false : overlap;
@@ -876,7 +876,7 @@ inline bool checkOverlapRect(const float amin[2], const float amax[2],
 }
 
 int rcGetChunksOverlappingRect(const rcChunkyTriMesh* cm,
-                               float bmin[2], float bmax[2],
+                               Real bmin[2], Real bmax[2],
                                int* ids, const int maxIds)
 {
     // Traverse tree

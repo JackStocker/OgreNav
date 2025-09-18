@@ -36,7 +36,8 @@
 #ifndef RECASTCONVEXHULL_H
 #define RECASTCONVEXHULL_H
 
-#include <Ogre.h>
+#include "RealTypes.h"
+#include <vector>
 
 class InputGeom;    // Advance declaration
 
@@ -81,19 +82,19 @@ public:
     /**
       * Create a convex hull from a bounding box
       **/
-    ConvexVolume(Ogre::AxisAlignedBox boundingBox, int new_area, float offset = 0.0f);
+    ConvexVolume(RealVector3 boundingBoxMin, RealVector3 boundingBoxMax, int new_area, Real offset = Real ( 0.0f));
 
     /**
       * Create a convex hull from verticies
       **/
-    ConvexVolume ( std::vector <Ogre::Vector3> verts, int new_area, float offset = 0.0f ) ;
+    ConvexVolume ( std::vector <RealVector3> verts, int new_area, Real offset = Real ( 0.0f) ) ;
 
     /**
       * The vertices of this convex hull.
       * Vertices are stored as three subsequent values, in order x, y, z
       * Size of this array is always a multiple of 3, exactly 3*nverts
       **/
-    float verts[MAX_CONVEXVOL_PTS*3];
+    Real verts[MAX_CONVEXVOL_PTS*3];
 
     /**
       * Number of vertices in verts.
@@ -104,12 +105,12 @@ public:
     /**
       * Minimum and maximum height of this convex hull.
       **/
-    float hmin, hmax;
+    Real hmin, hmax;
 
     /**
       * Axis aligned boundig box minimum and maximum of this convex hull.
       **/
-    float bmin[3], bmax[3];
+    Real bmin[3], bmax[3];
 
     /**
       * Area flag for the navmesh polygon that will be marked with this convex volume.

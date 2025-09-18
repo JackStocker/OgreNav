@@ -8,14 +8,15 @@ Members in this module are wrappers around the standard math library
 #define DETOURMATH_H
 
 #include <math.h>
+#include "RealTypes.h"
 
-inline float dtMathFabsf(float x) { return fabsf(x); }
-inline float dtMathSqrtf(float x) { return sqrtf(x); }
-inline float dtMathFloorf(float x) { return floorf(x); }
-inline float dtMathCeilf(float x) { return ceilf(x); }
-inline float dtMathCosf(float x) { return cosf(x); }
-inline float dtMathSinf(float x) { return sinf(x); }
-inline float dtMathAtan2f(float y, float x) { return atan2f(y, x); }
-inline bool dtMathIsfinite(float x) { return isfinite(x); }
+inline Real dtMathFabsf( Real x) { return fixedmath::abs(x); }
+inline Real dtMathSqrtf( Real x) { return fixedmath::sqrt(x); }
+inline Real dtMathFloorf( Real x) { return fixedmath::floor(x); }
+inline Real dtMathCeilf( Real x) { return fixedmath::ceil(x); }
+inline Real dtMathCosf( Real x) { return fixedmath::cos(x); }
+inline Real dtMathSinf( Real x) { return fixedmath::sin(x); }
+inline Real dtMathAtan2f( Real y, Real x) { return fixedmath::atan2(y, x); }
+inline bool dtMathIsfinite( Real x) { return true; }
 
 #endif
