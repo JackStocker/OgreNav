@@ -92,6 +92,15 @@ enum PolyFlags : unsigned short // Each poly can have multiple flags in a mask w
 } ;
 
 //
+struct NavInputMesh
+{
+   std::vector <RealVector3> Vertices ;
+   std::vector <int> TriangleIndices ;
+   RealVector3 MapMin ;
+   RealVector3 MapMax ;
+} ;
+
+//
 struct TerrainArea // Only square for the moment
 {
    RealVector3  Centre ;

@@ -336,10 +336,12 @@ DrawEntireNavMesh ( const dtTileCache    &tile_cache,
 
    DrawAllObstacles ( tile_cache ) ;
 
-   if ( Recast.GetInputGeometry () )
-   {
-      DrawGrid ( *Recast.GetInputGeometry () ) ;
-   }
+   //if ( Recast.GetInputGeometry () )
+   //{
+   //   DrawGrid ( *Recast.GetInputGeometry () ) ;
+   //}
+
+   DrawGrid ( Recast.GetMapMin (), Recast.GetMapMax () ) ;
 
    DrawAllTiles ( nav_mesh, nav_query ) ;
 
@@ -388,14 +390,18 @@ DrawAllObstacles ( const dtTileCache &tile_cache )
 
 void
 NavMeshDebug::
-DrawGrid ( const InputGeom &input_geom )
+DrawGrid ( const RealVector3 map_min,
+           const RealVector3 map_max )
 {
    const Ogre::ColourValue colour ( 0, 0, 0, 0.25f ) ;
    const float             cell_size  = 0.3f ;
    const float             tile_size  = 40 ;
 
-   const auto* bmin       = input_geom.getMeshBoundsMin () ;
-   const auto* bmax       = input_geom.getMeshBoundsMax () ;
+   Real bmin [ 3 ] ;
+   Real bmax [ 3 ] ;
+   OgreRecast::OgreVect3ToReal ( map_min, bmin ) ;
+   OgreRecast::OgreVect3ToReal ( map_max, bmax ) ;
+
    int         grid_width  = 0 ;
    int         grid_height = 0 ;
 
@@ -425,7 +431,7 @@ DrawGrid ( const InputGeom &input_geom )
    GridDebugId = CurrentDebugManager.CreateDebugPoly ( points, Real ( 0 ), colour ) ;
 }
 
-void
+/*void
 NavMeshDebug::
 DrawInputMesh ( const InputGeom &input_geom )
 {
@@ -477,7 +483,7 @@ DrawInputMesh ( const InputGeom &input_geom )
 
       InputMeshDebugId = CurrentDebugManager.CreateDebugTrianglePoly ( triangle_list, Ogre::ColourValue::Black ) ;
    }
-}
+}*/
 
 void
 NavMeshDebug::

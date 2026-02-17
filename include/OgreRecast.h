@@ -70,7 +70,7 @@ public:
    Generate ( const OgreRecastConfigParams &config_params, // Config parameters are re-set as they may be different if an existing navmesh file was loaded.
               const unsigned int         max_num_obstacles,
               const int                  tile_size,
-              std::vector<Ogre::ManualObject*> source_meshes,
+              NavInputMesh               input_mesh,
               const TerrainAreaVector    &area_list ) ;
 
    bool
@@ -95,8 +95,8 @@ public:
    std::unique_ptr <NavMeshDebug>
    CreateNavMeshDebugger () ;
 
-   const InputGeom*
-   GetInputGeometry () const ;
+   //const InputGeom*
+   //GetInputGeometry () const ;
 
    const std::vector <rcHeightfield*>
    GetHeightField () const ;
@@ -199,6 +199,12 @@ public:
    PositionTAToOgreVect3 ( const Real  *vect,
                            RealVector3 &result ) ;
 
+   RealVector3
+   GetMapMin () const ;
+
+   RealVector3
+   GetMapMax () const ;
+
 private :
    // Configure navbuild parameters for this module
    void
@@ -229,4 +235,6 @@ private :
    Real PolySearchBox [ 3 ] ;
 
    bool KeepInterResults = false ;
+   RealVector3 MapMin ;
+   RealVector3 MapMax ;
 } ;

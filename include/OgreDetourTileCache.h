@@ -307,8 +307,8 @@ public :
    std::unique_ptr <NavMeshDebug>
    CreateDebugger () ;
 
-   const InputGeom*
-   GetInputGeometry () const ;
+   //const InputGeom*
+   //GetInputGeometry () const ;
 
    const std::vector <rcHeightfield*>
    GetHeightField () const ;
@@ -328,7 +328,7 @@ public :
    // Will issue a configure() call so the entities specified will determine the world bounds
    // of the tilecache.
    bool
-   TileCacheBuild ( std::vector<Ogre::ManualObject*> srcMeshes,
+   TileCacheBuild ( NavInputMesh               input_mesh,
                     const TerrainAreaVector    &area_list ) ;
 
    bool
@@ -405,7 +405,7 @@ private :
    // to initialize.
    // This method has to be called once after construction, and before any tile builds happen.
    bool
-   ConfigureTileCacheContext () ;
+   ConfigureTileCacheContext ( const NavInputMesh &input_mesh ) ;
 
    // Build the 2D navigation grid divided in layers that is the intermediary format stored in the tilecache.
    // Builds the specified tile from the given input geometry. Only the part of the geometry that intersects the
@@ -414,7 +414,9 @@ private :
    // This process uses a large part of the recast navmesh building pipeline (implemented in OgreRecast::NavMeshBuild()),
    // up till step 4.
    int
-   RasterizeTileLayers ( const int     tx,
+   RasterizeTileLayers ( const NavInputMesh &input_mesh,
+                         const rcChunkyTriMesh &chunky_mesh,
+                         const int     tx,
                          const int     ty,
                          TileCacheData *tiles,
                          const int     maxTiles ) ;
@@ -427,7 +429,7 @@ private :
    // input will build navmesh from this geometry.
    // It also stored the convex temp obstacles. (will be gone in the future)
    // In the future this variable will probably disappear.
-   InputGeom      *InputGeometry ;
+   //InputGeom      *InputGeometry ;
    OgreRecast     &Recast ; // Ogre Recast component that holds the recast config and where the navmesh will be built.
    dtNavMeshQuery &NavQuery ;
 

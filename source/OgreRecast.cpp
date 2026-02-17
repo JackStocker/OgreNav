@@ -83,16 +83,18 @@ OgreRecast::
 Generate ( const OgreRecastConfigParams &config_params, // Config parameters are re-set as they may be different if an existing navmesh file was loaded.
            const unsigned int           max_num_obstacles,
            const int                    tile_size,
-           std::vector<Ogre::ManualObject*>   source_meshes,
+           NavInputMesh                 input_mesh,
            const TerrainAreaVector      &area_list )
 {
    ConfigureBuildParameters ( config_params ) ;
 
    KeepInterResults = config_params.getKeepInterResults () ;
+   MapMin = input_mesh.MapMin ;
+   MapMax = input_mesh.MapMax ;
 
    TileCache = std::make_unique <OgreDetourTileCache> ( *this, BuildContext, RecastConfig, NavQuery, max_num_obstacles, tile_size, KeepInterResults ) ;
 
-   return TileCache->TileCacheBuild ( std::move ( source_meshes ), area_list ) ;
+   return TileCache->TileCacheBuild ( std::move ( input_mesh ), area_list ) ;
 }
 
 bool
@@ -159,17 +161,17 @@ CreateNavMeshDebugger ()
    return nullptr ;
 }
 
-const InputGeom*
-OgreRecast::
-GetInputGeometry () const
-{
-   if ( TileCache )
-   {
-      return TileCache->GetInputGeometry () ;
-   }
-
-   return nullptr ;
-}
+//const InputGeom*
+//OgreRecast::
+//GetInputGeometry () const
+//{
+//   if ( TileCache )
+//   {
+//      return TileCache->GetInputGeometry () ;
+//   }
+//
+//   return nullptr ;
+//}
 
 const std::vector <rcHeightfield*>
 OgreRecast::
@@ -413,6 +415,20 @@ PositionTAToOgreVect3 ( const Real  *vect,
    result.x = vect [ 0 ] ;
    result.y = vect [ 1 ] ;
    result.z = vect [ 2 ] ;
+}
+
+RealVector3
+OgreRecast::
+GetMapMin () const
+{
+   return MapMin ;
+}
+
+RealVector3
+OgreRecast::
+GetMapMax () const
+{
+   return MapMax ;
 }
 
 bool

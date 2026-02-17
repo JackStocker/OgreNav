@@ -62,10 +62,11 @@ private :
    DrawAllObstacles ( const dtTileCache &tile_cache ) ;
 
    void
-   DrawGrid ( const class InputGeom &input_geom ) ;
+   DrawGrid ( const RealVector3 map_min,
+              const RealVector3 map_max ) ;
 
-   void
-   DrawInputMesh ( const InputGeom &input_geom ) ;
+   //void
+   //DrawInputMesh ( const InputGeom &input_geom ) ;
 
    void
    DrawHeightField ( const rcHeightfield &height_field ) ;

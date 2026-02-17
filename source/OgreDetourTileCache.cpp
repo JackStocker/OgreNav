@@ -251,7 +251,7 @@ OgreDetourTileCache ( OgreRecast         &recast,
    m_maxPolysPerTile     ( 0 ),
    m_cellSize            ( 0 ),
    m_tcomp               ( nullptr ),
-   InputGeometry         ( nullptr ),
+   //InputGeometry         ( nullptr ),
    m_th                  ( 0 ),
    m_tw                  ( 0 ),
    //m_volumeCount         ( 0 ),
@@ -277,7 +277,7 @@ OgreDetourTileCache::
    delete m_talloc ;
    delete m_tcomp ;
    delete m_tmproc ;
-   delete InputGeometry ;
+   //delete InputGeometry ;
 }
 
 std::unique_ptr <NavMeshDebug>
@@ -287,12 +287,12 @@ CreateDebugger ()
    return std::make_unique <NavMeshDebug> ( Recast, *m_tileCache, *m_navMesh, NavQuery ) ;
 }
 
-const InputGeom*
-OgreDetourTileCache::
-GetInputGeometry () const
-{
-   return InputGeometry ;
-}
+//const InputGeom*
+//OgreDetourTileCache::
+//GetInputGeometry () const
+//{
+//   return InputGeometry ;
+//}
 
 const std::vector <rcHeightfield*>
 OgreDetourTileCache::
@@ -303,10 +303,22 @@ GetHeightField () const
 
 bool
 OgreDetourTileCache::
-TileCacheBuild ( std::vector<Ogre::ManualObject*> srcMeshes,
+TileCacheBuild ( NavInputMesh               input_mesh,
                  const TerrainAreaVector    &area_list )
 {
-   InputGeometry = new InputGeom ( std::move ( srcMeshes ) ) ;
+   //InputGeometry = new InputGeom ( std::move ( srcMeshes ) ) ;
+
+   auto chunky_mesh = rcChunkyTriMesh () ;
+
+   const auto* verts      = reinterpret_cast <const Real*> ( input_mesh.Vertices.data () ) ;
+   const auto* tris       = input_mesh.TriangleIndices.data () ;
+   const auto  tris_count = input_mesh.TriangleIndices.size () / 3 ;
+
+   if (!rcCreateChunkyTriMesh( verts, tris, tris_count, 256, &chunky_mesh ))
+   {
+       Ogre::LogManager::getSingletonPtr()->logMessage("buildTiledNavigation: Failed to build chunky mesh.");
+       return false;
+   }
 
    // Setup the terrain area volumes before the tile cache is built.
    // This will cause all of the areas marked to have the area id specified by AreaId.
@@ -324,7 +336,7 @@ TileCacheBuild ( std::vector<Ogre::ManualObject*> srcMeshes,
    }
 
    // Init configuration for specified geometry
-   ConfigureTileCacheContext () ;
+   ConfigureTileCacheContext ( input_mesh ) ;
 
    dtStatus status ;
 
@@ -338,7 +350,7 @@ TileCacheBuild ( std::vector<Ogre::ManualObject*> srcMeshes,
 
          memset ( tiles, 0, sizeof ( tiles ) ) ;
 
-         int ntiles = RasterizeTileLayers ( x, y, tiles, MAX_LAYERS ) ; // This is where the tile is built
+         int ntiles = RasterizeTileLayers ( input_mesh, chunky_mesh, x, y, tiles, MAX_LAYERS ) ; // This is where the tile is built
 
          for ( int i = 0 ; i < ntiles ; ++i )
          {
@@ -819,23 +831,28 @@ RemoveOffMeshConnection ( const OffMeshConnectionId id )
 
 bool
 OgreDetourTileCache::
-ConfigureTileCacheContext ()
+ConfigureTileCacheContext ( const NavInputMesh &input_mesh )
 {
     // Reuse OgreRecast context for tiled navmesh building
 
-    if (!InputGeometry) {
-        Ogre::LogManager::getSingleton ().logMessage("ERROR: OgreDetourTileCache::configure: No vertices and triangles.");
-        return false;
-    }
+    //if (!InputGeometry) {
+    //    Ogre::LogManager::getSingleton ().logMessage("ERROR: OgreDetourTileCache::configure: No vertices and triangles.");
+    //    return false;
+    //}
+    //
+    //if (!InputGeometry->getChunkyMesh()) {
+    //    Ogre::LogManager::getSingleton ().logMessage("ERROR: OgreDetourTileCache::configure: Input mesh has no chunkyTriMesh built.");
+    //    return false;
+    //}
+    //
+    //// Init cache bounding box
+    //const Real* bmin = InputGeometry->getMeshBoundsMin();
+    //const Real* bmax = InputGeometry->getMeshBoundsMax();
 
-    if (!InputGeometry->getChunkyMesh()) {
-        Ogre::LogManager::getSingleton ().logMessage("ERROR: OgreDetourTileCache::configure: Input mesh has no chunkyTriMesh built.");
-        return false;
-    }
-
-    // Init cache bounding box
-    const Real* bmin = InputGeometry->getMeshBoundsMin();
-    const Real* bmax = InputGeometry->getMeshBoundsMax();
+    Real bmin [ 3 ] ;
+    Real bmax [ 3 ] ;
+    OgreRecast::OgreVect3ToReal ( input_mesh.MapMin, bmin ) ;
+    OgreRecast::OgreVect3ToReal ( input_mesh.MapMax, bmax ) ;
 
     // Navmesh generation params
 
@@ -892,33 +909,38 @@ ConfigureTileCacheContext ()
 
 int
 OgreDetourTileCache::
-RasterizeTileLayers ( const int     tx,
+RasterizeTileLayers ( const NavInputMesh    &input_mesh,
+                      const rcChunkyTriMesh &chunky_mesh,
+                      const int     tx,
                       const int     ty,
                       TileCacheData *tiles,
                       const int     maxTiles )
 {
-    if (!InputGeometry) {
-        Ogre::LogManager::getSingleton ().logMessage("ERROR: buildTile: Input mesh is not specified.");
-        return 0;
-    }
-
-    if (!InputGeometry->getChunkyMesh()) {
-        Ogre::LogManager::getSingleton ().logMessage("ERROR: buildTile: Input mesh has no chunkyTriMesh built.");
-        return 0;
-    }
+    //if (!InputGeometry) {
+    //    Ogre::LogManager::getSingleton ().logMessage("ERROR: buildTile: Input mesh is not specified.");
+    //    return 0;
+    //}
+    //
+    //if (!InputGeometry->getChunkyMesh()) {
+    //    Ogre::LogManager::getSingleton ().logMessage("ERROR: buildTile: Input mesh has no chunkyTriMesh built.");
+    //    return 0;
+    //}
 
 //TODO make these member variables?
     FastLZCompressor comp;
     RasterizationContext rc;
 
-    const Real* verts = InputGeometry->getVerts();
-    const int nverts = InputGeometry->getVertCount();
+    //const Real* verts = InputGeometry->getVerts();
+    //const int nverts = InputGeometry->getVertCount();
+
+    const auto* verts  = reinterpret_cast <const Real*> ( input_mesh.Vertices.data () ) ;
+    const int   nverts = input_mesh.Vertices.size () ;
 
     // The chunky tri mesh in the inputgeom is a simple spatial subdivision structure that allows to
     // process the vertices in the geometry relevant to this part of the tile.
     // The chunky tri mesh is a grid of axis aligned boxes that store indices to the vertices in verts
     // that are positioned in that box.
-    const rcChunkyTriMesh* chunkyMesh = InputGeometry->getChunkyMesh();
+    //const rcChunkyTriMesh* chunkyMesh = InputGeometry->getChunkyMesh();
 
     // Tile bounds.
     const Real tcs = Real ( m_tileSize) * Real ( m_cellSize);
@@ -958,10 +980,10 @@ RasterizeTileLayers ( const int     tx,
     // Allocate array that can hold triangle flags.
     // If you have multiple meshes you need to process, allocate
     // an array which can hold the max number of triangles you need to process.
-    rc.triareas = new unsigned char[chunkyMesh->maxTrisPerChunk];
+    rc.triareas = new unsigned char[ chunky_mesh.maxTrisPerChunk];
     if (!rc.triareas)
     {
-        Ogre::LogManager::getSingleton ().logMessage("ERROR: buildNavigation: Out of memory 'm_triareas' ("+Ogre::StringConverter::toString(chunkyMesh->maxTrisPerChunk)+").");
+        Ogre::LogManager::getSingleton ().logMessage("ERROR: buildNavigation: Out of memory 'm_triareas' ("+Ogre::StringConverter::toString( chunky_mesh.maxTrisPerChunk)+").");
         return 0;
     }
 
@@ -971,7 +993,7 @@ RasterizeTileLayers ( const int     tx,
     tbmax[0] = tcfg.bmax[0];
     tbmax[1] = tcfg.bmax[2];
     int cid[512];// TODO: Make grow when returning too many items.
-    const int ncid = rcGetChunksOverlappingRect(chunkyMesh, tbmin, tbmax, cid, 512);
+    const int ncid = rcGetChunksOverlappingRect( &chunky_mesh, tbmin, tbmax, cid, 512);
     if (!ncid)
     {
         return 0; // empty
@@ -979,8 +1001,8 @@ RasterizeTileLayers ( const int     tx,
 
     for (int i = 0; i < ncid; ++i)
     {
-        const rcChunkyTriMeshNode& node = chunkyMesh->nodes[cid[i]];
-        const int* tris = &chunkyMesh->tris[node.i*3];
+        const rcChunkyTriMeshNode& node = chunky_mesh.nodes[cid[i]];
+        const int* tris = &chunky_mesh.tris[node.i*3];
         const int ntris = node.n;
 
         memset(rc.triareas, 0, ntris*sizeof(unsigned char));
