@@ -332,7 +332,8 @@ OgreRecast::
 IsStraightLinePathTo ( Real              *start_pos,
                        Real              *end_pos,
                        const unsigned int include_flags,
-                       const unsigned int exclude_flags )
+                       const unsigned int exclude_flags,
+                       const Real         max_offset_perc )
 {
    dtStatus  status ;
    dtPolyRef start_poly ;
@@ -371,7 +372,7 @@ IsStraightLinePathTo ( Real              *start_pos,
    status = NavQuery.raycast ( start_poly, start_pos, end_pos, &QueryFilter, &hit, normal, path, &path_count, MAX_RAYCAST_PATH ) ;
 
    if ( ( path_count >= 1 ) &&
-        ( hit > Real ( 0.99f) ) )
+        ( hit >= ( Real ( 1 ) - max_offset_perc ) ) )
    {
       return FindPathReturnCode::PATH_FOUND ;
    }
@@ -386,7 +387,8 @@ OgreRecast::
 IsStraightLinePathTo ( const RealVector3  start_pos,
                        const RealVector3  end_pos,
                        const unsigned int include_flags,
-                       const unsigned int exclude_flags )
+                       const unsigned int exclude_flags,
+                       const Real         max_offset_perc )
 {
    Real start [ 3 ] ;
    Real end   [ 3 ] ;
@@ -394,7 +396,7 @@ IsStraightLinePathTo ( const RealVector3  start_pos,
    OgreVect3ToReal ( start_pos, start ) ;
    OgreVect3ToReal ( end_pos,   end ) ;
 
-   return IsStraightLinePathTo ( start, end, include_flags, exclude_flags ) ;
+   return IsStraightLinePathTo ( start, end, include_flags, exclude_flags, max_offset_perc ) ;
 }
 
 void

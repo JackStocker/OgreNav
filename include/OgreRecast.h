@@ -164,13 +164,15 @@ public:
    IsStraightLinePathTo ( Real              *start_pos,
                           Real              *end_pos,
                           const unsigned int include_flags,
-                          const unsigned int exclude_flags ) ;
+                          const unsigned int exclude_flags,
+                          const Real         max_offset_perc = Real ( 0.01f ) ) ;
 
    FindPathReturnCode
    IsStraightLinePathTo ( const RealVector3   start_pos,
                           const RealVector3   end_pos,
                           const unsigned int  include_flags,
-                          const unsigned int  exclude_flags ) ;
+                          const unsigned int  exclude_flags,
+                          const Real          max_offset_perc = Real ( 0.01f ) ) ;
 
    // Find a point on the navmesh closest to the specified point position, within predefined
    // bounds.
